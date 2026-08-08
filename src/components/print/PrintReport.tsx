@@ -3,6 +3,7 @@ import { calculateSampleWeights } from '../../engine/calculateSampleWeights'
 import { recipeTotal } from '../../engine/expandRecipe'
 import { buildStandaloneSvg } from '../../engine/exportSvg'
 import { formatDateEs, formatWeight } from '../../engine/format'
+import { atmosphereLabel, hasAnyProjectFiring } from '../../engine/effectiveFiring'
 import { hasMeaningfulResult } from '../../engine/resultStatus'
 import type { TriaxialProject } from '../../types/project'
 import type { TriaxialSample } from '../../types/triaxial'
@@ -43,6 +44,25 @@ export function PrintReport({ project, samples, preparation }: Props) {
           <div><span>Peso por muestra</span><b>{project.sampleWeight} g</b></div>
           <div><span>Margen</span><b>{project.preparationMargin} %</b></div>
         </section>
+
+        {hasAnyProjectFiring(project.firing) && (
+          <section className="print-firing">
+            <span className="print-firing-label">COCCIÓN</span>
+            <span className="print-firing-line">
+              {[
+                project.firing?.date ? formatDateEs(project.firing.date) : null,
+                project.firing?.temperature !== undefined ? `${project.firing.temperature} °C` : null,
+                project.firing?.atmosphere ? atmosphereLabel(project.firing.atmosphere) : null,
+                project.firing?.cone ? `Cono ${project.firing.cone}` : null,
+              ].filter(Boolean).join(' · ')}
+            </span>
+            {(project.firing?.kiln || project.firing?.notes) && (
+              <span className="print-firing-sub">
+                {[project.firing?.kiln, project.firing?.notes].filter(Boolean).join(' · ')}
+              </span>
+            )}
+          </section>
+        )}
 
         <section className="print-vertices-grid">
           {(['A', 'B', 'C'] as const).map((id) => {

@@ -20,7 +20,7 @@ export function createDefaultProject(name = 'Nuevo triaxial'): TriaxialProject {
       B: { id: 'B', name: 'Material B', type: 'material', color: '#a54835' },
       C: { id: 'C', name: 'Material C', type: 'material', color: '#315a87' },
     },
-    firing: undefined,
+    firing: {},
     results: {},
   }
 }

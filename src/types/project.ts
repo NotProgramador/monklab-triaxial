@@ -4,9 +4,12 @@ import type { FiringResult } from './result'
 export const PROJECT_VERSION = 2
 
 export interface ProjectFiring {
+  date?: string
   temperature?: number
   cone?: string
   atmosphere?: 'oxidacion' | 'reduccion' | 'neutra' | 'otro'
+  kiln?: string
+  notes?: string
 }
 
 export interface TriaxialProject {

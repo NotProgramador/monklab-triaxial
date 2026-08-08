@@ -59,6 +59,10 @@ function validateVertex(v: unknown, id: 'A' | 'B' | 'C'): VertexMaterial {
   }
 }
 
+function validateLevel(v: unknown): 1 | 2 | 3 | undefined {
+  return v === 1 || v === 2 || v === 3 ? v : undefined
+}
+
 function validateResult(v: unknown): FiringResult {
   if (!isObject(v)) return {}
   const atm = ALLOWED_ATMOS.includes(v.atmosphere as FiringAtmosphere)
@@ -73,6 +77,9 @@ function validateResult(v: unknown): FiringResult {
     cone: typeof v.cone === 'string' ? v.cone : undefined,
     atmosphere: atm,
     surface,
+    gloss: validateLevel(v.gloss),
+    opacity: validateLevel(v.opacity),
+    fluidity: validateLevel(v.fluidity),
     defects: typeof v.defects === 'string' ? v.defects : undefined,
     notes: typeof v.notes === 'string' ? v.notes : undefined,
     hasPhoto: typeof v.hasPhoto === 'boolean' ? v.hasPhoto : undefined,
@@ -181,10 +188,15 @@ export function deserializeProject(raw: string | unknown): TriaxialProject {
       C: validateVertex(vertsIn.C, 'C'),
     },
     firing: isObject(data.firing) ? {
-      temperature: typeof data.firing.temperature === 'number' ? data.firing.temperature : undefined,
+      date: typeof data.firing.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.firing.date)
+        ? data.firing.date : undefined,
+      temperature: typeof data.firing.temperature === 'number' && Number.isFinite(data.firing.temperature) && data.firing.temperature >= 0
+        ? data.firing.temperature : undefined,
       cone: typeof data.firing.cone === 'string' ? data.firing.cone : undefined,
       atmosphere: ALLOWED_ATMOS.includes(data.firing.atmosphere as FiringAtmosphere)
         ? (data.firing.atmosphere as FiringAtmosphere) : undefined,
+      kiln: typeof data.firing.kiln === 'string' ? data.firing.kiln : undefined,
+      notes: typeof data.firing.notes === 'string' ? data.firing.notes : undefined,
     } : undefined,
     results,
   }

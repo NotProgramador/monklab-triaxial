@@ -58,3 +58,45 @@ describe('samplesToCsv gloss/opacity/fluidity', () => {
     expect(row1).toContain(';Registrado;')
   })
 })
+
+describe('samplesToCsv con firing efectivo (V1.2.1)', () => {
+  const projectFiring = {
+    date: '2026-08-08',
+    temperature: 1040,
+    cone: '06',
+    atmosphere: 'oxidacion' as const,
+    kiln: 'Horno eléctrico',
+  }
+
+  it('columnas Fecha cocción y Horno presentes', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {}, projectFiring)
+    const header = csv.split('\r\n')[0]
+    expect(header).toContain('Fecha cocción')
+    expect(header).toContain('Horno')
+    expect(header).toContain('Temperatura °C')
+  })
+
+  it('T01 sin override usa firing del proyecto', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {}, projectFiring)
+    const row1 = csv.split('\r\n').find((r) => r.startsWith('1;'))!
+    expect(row1).toContain(';2026-08-08;')
+    expect(row1).toContain(';1040;')
+    expect(row1).toContain(';06;')
+    expect(row1).toContain('Oxidación')
+    expect(row1).toContain('Horno eléctrico')
+  })
+
+  it('T09 con override 1080 gana', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, { 9: { temperature: 1080 } }, projectFiring)
+    const row9 = csv.split('\r\n').find((r) => r.startsWith('9;'))!
+    expect(row9).toContain(';1080;')
+    expect(row9).toContain('Oxidación') // no override → hereda
+  })
+
+  it('sin projectFiring y sin override → columnas vacías', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {})
+    const row1 = csv.split('\r\n').find((r) => r.startsWith('1;'))!
+    // Estado (Sin resultado) seguido de Fecha/Temp/Cono/Atmósfera/Horno vacíos
+    expect(row1).toContain('Sin resultado;;;;;;')
+  })
+})

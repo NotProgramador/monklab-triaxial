@@ -17,9 +17,10 @@ import { VertexEditor } from './components/materials/VertexEditor'
 import { VertexCards } from './components/materials/VertexCards'
 import { ProjectHeader } from './components/project/ProjectHeader'
 import { PrintReport } from './components/print/PrintReport'
+import { FiringConditionsPanel } from './components/firing/FiringConditionsPanel'
 import { printLabelsDocument } from './print/printLabelsDocument'
 
-import type { TriaxialProject } from './types/project'
+import type { ProjectFiring, TriaxialProject } from './types/project'
 import type { VertexMaterial } from './types/material'
 import type { FiringResult } from './types/result'
 import {
@@ -120,6 +121,9 @@ function App() {
     else results[sampleId] = r
     update({ results })
   }
+  const updateFiring = (firing: ProjectFiring) => {
+    update({ firing })
+  }
 
   const handleSave = () => {
     const res = saveProject(project)
@@ -189,7 +193,7 @@ function App() {
   const handleExportCsv = () => {
     downloadFile(
       `${slug(project.name)}.csv`,
-      samplesToCsv(samples, project.vertices, project.sampleWeight, project.results),
+      samplesToCsv(samples, project.vertices, project.sampleWeight, project.results, project.firing),
       'text/csv;charset=utf-8',
     )
   }
@@ -335,6 +339,13 @@ function App() {
           </div>
         )}
 
+        {mode === 'results' && (
+          <FiringConditionsPanel
+            firing={project.firing}
+            onChange={updateFiring}
+          />
+        )}
+
         <section className="workspace">
           <div className="materials-column no-print" id="vertex-editor-panel">
             <VertexCards
@@ -381,6 +392,7 @@ function App() {
             result={selected ? project.results[selected.id] : undefined}
             results={project.results}
             projectId={project.id}
+            projectFiring={project.firing}
             mode={mode}
             onResultChange={(r) => selected && updateResult(selected.id, r)}
             onSelect={(id) => setSelectedId(id)}

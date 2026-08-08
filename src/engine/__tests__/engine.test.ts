@@ -207,6 +207,50 @@ describe('serialization', () => {
       deserializeProject('{"version":1,"vertices":{"A":{},"B":{},"C":{}},"step":20,"sampleWeight":-1}'),
     ).toThrow(/Peso/)
   })
+  it('roundtrip firing V1.2.1 (date, kiln, notes)', () => {
+    const p = createDefaultProject('T')
+    p.firing = {
+      date: '2026-08-08', temperature: 1040, cone: '06',
+      atmosphere: 'oxidacion', kiln: 'Horno eléctrico', notes: 'Curva estándar',
+    }
+    const rt = deserializeProject(serializeProject(p))
+    expect(rt.firing).toMatchObject(p.firing)
+  })
+
+  it('firing.date con formato inválido → undefined', () => {
+    const rt = deserializeProject(JSON.stringify({
+      version: 2,
+      vertices: { A: {}, B: {}, C: {} }, step: 20, sampleWeight: 20,
+      firing: { date: '08/08/2026', temperature: 1040 },
+    }))
+    expect(rt.firing?.date).toBeUndefined()
+    expect(rt.firing?.temperature).toBe(1040)
+  })
+
+  it('firing.temperature negativa → undefined', () => {
+    const rt = deserializeProject(JSON.stringify({
+      version: 2,
+      vertices: { A: {}, B: {}, C: {} }, step: 20, sampleWeight: 20,
+      firing: { temperature: -5 },
+    }))
+    expect(rt.firing?.temperature).toBeUndefined()
+  })
+
+  it('proyecto V1.1 sin firing sigue importando', () => {
+    const rt = deserializeProject(JSON.stringify({
+      version: 1,
+      vertices: { A: {}, B: {}, C: {} }, step: 20, sampleWeight: 20,
+    }))
+    expect(rt.firing).toBeUndefined()
+  })
+
+  it('roundtrip gloss/opacity/fluidity en results', () => {
+    const p = createDefaultProject('T')
+    p.results = { 9: { observedColor: '#75696c', gloss: 3, opacity: 1, fluidity: 2 } }
+    const rt = deserializeProject(serializeProject(p))
+    expect(rt.results[9]).toMatchObject({ observedColor: '#75696c', gloss: 3, opacity: 1, fluidity: 2 })
+  })
+
   it('rechaza percentage NaN convirtiéndolo a 0', () => {
     const p = deserializeProject(JSON.stringify({
       version: 1,

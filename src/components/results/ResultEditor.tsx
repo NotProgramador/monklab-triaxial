@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FiringAtmosphere, FiringResult, Surface } from '../../types/result'
+import type { FiringResult, Surface } from '../../types/result'
 import {
   deleteSampleImage, getSampleImage, resizeImage, saveSampleImage,
   urlForBlob, releaseBlobUrl,
@@ -11,13 +11,6 @@ interface Props {
   result: FiringResult | undefined
   onChange: (r: FiringResult | undefined) => void
 }
-
-const ATMOS: { value: FiringAtmosphere; label: string }[] = [
-  { value: 'oxidacion', label: 'Oxidación' },
-  { value: 'reduccion', label: 'Reducción' },
-  { value: 'neutra', label: 'Neutra' },
-  { value: 'otro', label: 'Otro' },
-]
 
 const SURF: { value: Surface; label: string }[] = [
   { value: 'mate', label: 'Mate' },
@@ -168,41 +161,6 @@ export function ResultEditor({ projectId, sampleId, result, onChange }: Props) {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="result-group">
-        <h4 className="result-group-title">Cocción</h4>
-        <div className="field-row">
-          <label className="field">
-            <span>Temperatura °C</span>
-            <input
-              type="number"
-              value={r.temperature ?? ''}
-              onChange={(e) => {
-                const v = Number(e.target.value)
-                patch({ temperature: e.target.value === '' ? undefined : v })
-              }}
-            />
-          </label>
-          <label className="field">
-            <span>Cono</span>
-            <input
-              type="text"
-              value={r.cone ?? ''}
-              onChange={(e) => patch({ cone: e.target.value || undefined })}
-            />
-          </label>
-        </div>
-        <label className="field">
-          <span>Atmósfera</span>
-          <select
-            value={r.atmosphere ?? ''}
-            onChange={(e) => patch({ atmosphere: (e.target.value || undefined) as FiringAtmosphere | undefined })}
-          >
-            <option value="">—</option>
-            {ATMOS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-          </select>
-        </label>
       </div>
 
       <div className="result-group">

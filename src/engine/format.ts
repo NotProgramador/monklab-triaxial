@@ -20,7 +20,18 @@ export function roundTo(value: number, decimals = 4): number {
   return Math.round(value * factor) / factor
 }
 
-export function formatDateEs(date: Date = new Date()): string {
+export function formatDateEs(input?: Date | string): string {
+  let date: Date
+  if (input === undefined) {
+    date = new Date()
+  } else if (typeof input === 'string') {
+    // Interpret YYYY-MM-DD as local midnight (avoid TZ drift for date-only inputs).
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input)
+    date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(input)
+    if (!Number.isFinite(date.getTime())) return ''
+  } else {
+    date = input
+  }
   try {
     return new Intl.DateTimeFormat('es-MX', {
       day: '2-digit', month: 'short', year: 'numeric',

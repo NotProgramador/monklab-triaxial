@@ -1,4 +1,5 @@
 import type { VertexMaterial } from '../../types/material'
+import type { ProjectFiring } from '../../types/project'
 import type { FiringResult } from '../../types/result'
 import type { TriaxialSample } from '../../types/triaxial'
 import type { ViewMode } from '../triangle/TriaxialDiagram'
@@ -14,13 +15,14 @@ interface Props {
   result: FiringResult | undefined
   results: Record<number, FiringResult>
   projectId: string
+  projectFiring: ProjectFiring | undefined
   mode: ViewMode
   onResultChange: (r: FiringResult | undefined) => void
   onSelect: (id: number) => void
 }
 
 export function SampleInspector({
-  sample, samples, vertices, sampleWeight, result, results, projectId, mode,
+  sample, samples, vertices, sampleWeight, result, results, projectId, projectFiring, mode,
   onResultChange, onSelect,
 }: Props) {
   const totalCount = samples.length
@@ -97,6 +99,7 @@ export function SampleInspector({
           vertices={vertices}
           result={result}
           projectId={projectId}
+          projectFiring={projectFiring}
           onResultChange={onResultChange}
         />
       )}

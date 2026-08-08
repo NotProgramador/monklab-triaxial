@@ -1,7 +1,9 @@
 import type { VertexMaterial } from '../types/material'
+import type { ProjectFiring } from '../types/project'
 import type { FiringAtmosphere, FiringResult, Surface } from '../types/result'
 import type { TriaxialSample } from '../types/triaxial'
 import { calculateSampleWeights } from './calculateSampleWeights'
+import { getEffectiveFiring } from './effectiveFiring'
 import { hasMeaningfulResult } from './resultStatus'
 
 const ATMOS_LABEL: Record<FiringAtmosphere, string> = {
@@ -46,6 +48,7 @@ export function samplesToCsv(
   vertices: { A: VertexMaterial; B: VertexMaterial; C: VertexMaterial },
   sampleWeight: number,
   results: Record<number, FiringResult>,
+  projectFiring?: ProjectFiring,
 ): string {
   const header = [
     'Muestra',
@@ -54,9 +57,11 @@ export function samplesToCsv(
     `${vertices.B.name || 'B'} g`,
     `${vertices.C.name || 'C'} g`,
     'Estado',
-    'Temperatura',
+    'Fecha cocción',
+    'Temperatura °C',
     'Cono',
     'Atmósfera',
+    'Horno',
     'Superficie',
     'Brillo',
     'Opacidad',
@@ -69,14 +74,17 @@ export function samplesToCsv(
   for (const s of samples) {
     const w = calculateSampleWeights(s, sampleWeight)
     const r = results[s.id]
+    const eff = getEffectiveFiring(projectFiring, r)
     rows.push([
       s.id,
       s.a, s.b, s.c,
       w.a.toFixed(3), w.b.toFixed(3), w.c.toFixed(3),
       hasMeaningfulResult(r) ? 'Registrado' : 'Sin resultado',
-      r?.temperature ?? '',
-      r?.cone ?? '',
-      r?.atmosphere ? ATMOS_LABEL[r.atmosphere] : '',
+      eff.date ?? '',
+      eff.temperature ?? '',
+      eff.cone ?? '',
+      eff.atmosphere ? ATMOS_LABEL[eff.atmosphere] : '',
+      eff.kiln ?? '',
       r?.surface ? SURF_LABEL[r.surface] : '',
       r?.gloss ? (GLOSS_LABEL[r.gloss] ?? String(r.gloss)) : '',
       r?.opacity ? (OPACITY_LABEL[r.opacity] ?? String(r.opacity)) : '',

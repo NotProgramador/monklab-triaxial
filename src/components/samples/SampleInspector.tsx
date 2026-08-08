@@ -3,6 +3,7 @@ import type { ProjectFiring } from '../../types/project'
 import type { FiringResult } from '../../types/result'
 import type { TriaxialSample } from '../../types/triaxial'
 import type { ViewMode } from '../triangle/TriaxialDiagram'
+import type { BalancePrecision } from '../../engine/weighingPrecision'
 import { countRegistered } from '../../engine/resultStatus'
 import { FormulationInspector } from './FormulationInspector'
 import { ResultsInspector } from './ResultsInspector'
@@ -16,13 +17,14 @@ interface Props {
   results: Record<number, FiringResult>
   projectId: string
   projectFiring: ProjectFiring | undefined
+  balancePrecision?: BalancePrecision
   mode: ViewMode
   onResultChange: (r: FiringResult | undefined) => void
   onSelect: (id: number) => void
 }
 
 export function SampleInspector({
-  sample, samples, vertices, sampleWeight, result, results, projectId, projectFiring, mode,
+  sample, samples, vertices, sampleWeight, result, results, projectId, projectFiring, balancePrecision, mode,
   onResultChange, onSelect,
 }: Props) {
   const totalCount = samples.length
@@ -92,6 +94,7 @@ export function SampleInspector({
           sample={sample}
           vertices={vertices}
           sampleWeight={sampleWeight}
+          balancePrecision={balancePrecision}
         />
       ) : (
         <ResultsInspector

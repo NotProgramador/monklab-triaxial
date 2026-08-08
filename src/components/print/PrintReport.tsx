@@ -5,6 +5,11 @@ import { buildStandaloneSvg } from '../../engine/exportSvg'
 import { formatDateEs, formatWeight } from '../../engine/format'
 import { atmosphereLabel, hasAnyProjectFiring } from '../../engine/effectiveFiring'
 import { hasMeaningfulResult } from '../../engine/resultStatus'
+import {
+  formatWeightForPrecision,
+  quantizeNamed,
+  quantizeWeights,
+} from '../../engine/weighingPrecision'
 import type { TriaxialProject } from '../../types/project'
 import type { TriaxialSample } from '../../types/triaxial'
 
@@ -43,6 +48,9 @@ export function PrintReport({ project, samples, preparation }: Props) {
           <div><span>Muestras</span><b>{samples.length}</b></div>
           <div><span>Peso por muestra</span><b>{project.sampleWeight} g</b></div>
           <div><span>Margen</span><b>{project.preparationMargin} %</b></div>
+          {project.balancePrecision !== undefined && (
+            <div><span>Balanza</span><b>{project.balancePrecision} g</b></div>
+          )}
         </section>
 
         {hasAnyProjectFiring(project.firing) && (
@@ -109,41 +117,89 @@ export function PrintReport({ project, samples, preparation }: Props) {
       {/* PÁGINA 2 */}
       <section className="print-page">
         <h2>Hoja de preparación</h2>
-        <div className="print-params">
-          <div><span>Muestras</span><b>{preparation.sampleCount}</b></div>
-          <div><span>Peso por muestra</span><b>{project.sampleWeight} g</b></div>
-          <div><span>Bruto</span><b>{formatWeight(preparation.grossTotal)} g</b></div>
-          <div><span>Margen</span><b>{preparation.marginPercent} %</b></div>
-          <div><span>Total con margen</span><b>{formatWeight(preparation.withMarginTotal)} g</b></div>
-        </div>
+        {(() => {
+          const bp = project.balancePrecision
+          const masterTheor = [
+            preparation.withMarginPerVertex.a,
+            preparation.withMarginPerVertex.b,
+            preparation.withMarginPerVertex.c,
+          ]
+          const masterQ = bp !== undefined
+            ? quantizeWeights(masterTheor, bp, preparation.withMarginTotal)
+            : null
+          const ingQ = bp !== undefined && showIngredients
+            ? quantizeNamed(preparation.expandedIngredients, bp, preparation.withMarginTotal)
+            : null
+          const totalStr = bp !== undefined && masterQ
+            ? `${formatWeightForPrecision(masterQ.practicalTotal, bp)} g`
+            : `${formatWeight(preparation.withMarginTotal)} g`
+          const fmt = (v: number) => bp !== undefined ? `${formatWeightForPrecision(v, bp)} g` : `${formatWeight(v)} g`
+          const fmtIng = (v: number) => bp !== undefined ? `${formatWeightForPrecision(v, bp)} g` : `${formatWeight(v, 2)} g`
+          return (
+            <>
+              <div className="print-params">
+                <div><span>Muestras</span><b>{preparation.sampleCount}</b></div>
+                <div><span>Peso por muestra</span><b>{project.sampleWeight} g</b></div>
+                <div><span>Bruto</span><b>{formatWeight(preparation.grossTotal)} g</b></div>
+                <div><span>Margen</span><b>{preparation.marginPercent} %</b></div>
+                <div><span>Total con margen</span><b>{totalStr}</b></div>
+                {bp !== undefined && (
+                  <div><span>Balanza</span><b>{bp} g</b></div>
+                )}
+              </div>
 
-        <h3>Mezclas maestras a preparar</h3>
-        <table className="print-table">
-          <tbody>
-            <tr><td>A · {project.vertices.A.name}</td><td className="num">{formatWeight(preparation.withMarginPerVertex.a)} g</td></tr>
-            <tr><td>B · {project.vertices.B.name}</td><td className="num">{formatWeight(preparation.withMarginPerVertex.b)} g</td></tr>
-            <tr><td>C · {project.vertices.C.name}</td><td className="num">{formatWeight(preparation.withMarginPerVertex.c)} g</td></tr>
-          </tbody>
-        </table>
+              {bp !== undefined && (
+                <p className="print-note">
+                  Pesadas prácticas ajustadas a resolución de {bp} g. Los valores teóricos permanecen sin modificar.
+                </p>
+              )}
 
-        {showIngredients && (
-          <>
-            <h3>Materias primas necesarias</h3>
-            <table className="print-table">
-              <tbody>
-                {preparation.expandedIngredients.map((i) => (
-                  <tr key={i.name}><td>{i.name}</td><td className="num">{formatWeight(i.grams, 2)} g</td></tr>
-                ))}
-                <tr className="total">
-                  <td>Total</td>
-                  <td className="num">
-                    {formatWeight(preparation.expandedIngredients.reduce((s, i) => s + i.grams, 0))} g
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </>
-        )}
+              <h3>Mezclas maestras a preparar</h3>
+              <table className="print-table">
+                <tbody>
+                  {(['A', 'B', 'C'] as const).map((id, i) => {
+                    const name = project.vertices[id].name || id
+                    const teor = masterTheor[i]
+                    const prac = masterQ?.values[i] ?? teor
+                    return (
+                      <tr key={id}>
+                        <td>{id} · {name}</td>
+                        <td className="num">{fmt(prac)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+
+              {showIngredients && (
+                <>
+                  <h3>Materias primas necesarias</h3>
+                  <table className="print-table">
+                    <tbody>
+                      {preparation.expandedIngredients.map((i, idx) => {
+                        const prac = ingQ?.items[idx].practical ?? i.grams
+                        return (
+                          <tr key={i.name}>
+                            <td>{i.name}</td>
+                            <td className="num">{fmtIng(prac)}</td>
+                          </tr>
+                        )
+                      })}
+                      <tr className="total">
+                        <td>Total</td>
+                        <td className="num">
+                          {bp !== undefined && ingQ
+                            ? `${formatWeightForPrecision(ingQ.practicalTotal, bp)} g`
+                            : `${formatWeight(preparation.expandedIngredients.reduce((s, i) => s + i.grams, 0))} g`}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </>
+          )
+        })()}
 
         {preparation.invalidRecipes.length > 0 && (
           <p className="print-warn">

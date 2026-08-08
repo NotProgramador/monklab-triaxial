@@ -251,6 +251,28 @@ describe('serialization', () => {
     expect(rt.results[9]).toMatchObject({ observedColor: '#75696c', gloss: 3, opacity: 1, fluidity: 2 })
   })
 
+  it('roundtrip balancePrecision 0.1', () => {
+    const p = createDefaultProject('T')
+    p.balancePrecision = 0.1
+    const rt = deserializeProject(serializeProject(p))
+    expect(rt.balancePrecision).toBe(0.1)
+  })
+
+  it('balancePrecision inválida (0.05) → undefined', () => {
+    const rt = deserializeProject(JSON.stringify({
+      version: 2, vertices: { A: {}, B: {}, C: {} }, step: 20, sampleWeight: 20,
+      balancePrecision: 0.05,
+    }))
+    expect(rt.balancePrecision).toBeUndefined()
+  })
+
+  it('proyecto sin balancePrecision → undefined', () => {
+    const rt = deserializeProject(JSON.stringify({
+      version: 2, vertices: { A: {}, B: {}, C: {} }, step: 20, sampleWeight: 20,
+    }))
+    expect(rt.balancePrecision).toBeUndefined()
+  })
+
   it('rechaza percentage NaN convirtiéndolo a 0', () => {
     const p = deserializeProject(JSON.stringify({
       version: 1,

@@ -23,6 +23,8 @@ import { printLabelsDocument } from './print/printLabelsDocument'
 import type { ProjectFiring, TriaxialProject } from './types/project'
 import type { VertexMaterial } from './types/material'
 import type { FiringResult } from './types/result'
+import type { BalancePrecision } from './engine/weighingPrecision'
+import { isRepresentable } from './engine/weighingPrecision'
 import {
   deleteProject as delProject,
   listProjects,
@@ -193,7 +195,7 @@ function App() {
   const handleExportCsv = () => {
     downloadFile(
       `${slug(project.name)}.csv`,
-      samplesToCsv(samples, project.vertices, project.sampleWeight, project.results, project.firing),
+      samplesToCsv(samples, project.vertices, project.sampleWeight, project.results, project.firing, project.balancePrecision),
       'text/csv;charset=utf-8',
     )
   }
@@ -290,6 +292,34 @@ function App() {
               <span>%</span>
             </div>
           </div>
+
+          <fieldset className="control-group control-group--balance">
+            <legend>Balanza</legend>
+            <div className="btn-row" role="radiogroup" aria-label="Precisión de la balanza">
+              {([undefined, 1, 0.1, 0.01] as const).map((p) => {
+                const isActive = project.balancePrecision === p
+                const label = p === undefined ? 'Sin definir' : `${p} g`
+                return (
+                  <button
+                    key={String(p)}
+                    type="button"
+                    role="radio"
+                    aria-checked={isActive}
+                    className={`chip-btn ${isActive ? 'is-active' : ''}`}
+                    onClick={() => update({ balancePrecision: p as BalancePrecision | undefined })}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+            {project.balancePrecision !== undefined
+              && !isRepresentable(project.sampleWeight, project.balancePrecision) && (
+              <p className="hint hint-warn">
+                {project.sampleWeight} g no es representable con balanza {project.balancePrecision} g.
+              </p>
+            )}
+          </fieldset>
 
           <div className="control-group control-group--modes">
             <label>Modo</label>
@@ -393,6 +423,7 @@ function App() {
             results={project.results}
             projectId={project.id}
             projectFiring={project.firing}
+            balancePrecision={project.balancePrecision}
             mode={mode}
             onResultChange={(r) => selected && updateResult(selected.id, r)}
             onSelect={(id) => setSelectedId(id)}
@@ -403,6 +434,7 @@ function App() {
           totals={preparation}
           vertices={project.vertices}
           hasRecipes={recipesActive}
+          balancePrecision={project.balancePrecision}
         />
 
         <section className="table-section">
@@ -413,6 +445,7 @@ function App() {
             sampleWeight={project.sampleWeight}
             selectedId={selectedId}
             results={project.results}
+            balancePrecision={project.balancePrecision}
             onSelect={(s) => setSelectedId(s.id)}
           />
         </section>

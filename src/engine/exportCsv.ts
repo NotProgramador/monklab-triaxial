@@ -5,6 +5,11 @@ import type { TriaxialSample } from '../types/triaxial'
 import { calculateSampleWeights } from './calculateSampleWeights'
 import { getEffectiveFiring } from './effectiveFiring'
 import { hasMeaningfulResult } from './resultStatus'
+import {
+  formatWeightForPrecision,
+  quantizeWeights,
+  type BalancePrecision,
+} from './weighingPrecision'
 
 const ATMOS_LABEL: Record<FiringAtmosphere, string> = {
   oxidacion: 'Oxidación',
@@ -49,13 +54,19 @@ export function samplesToCsv(
   sampleWeight: number,
   results: Record<number, FiringResult>,
   projectFiring?: ProjectFiring,
+  balancePrecision?: BalancePrecision,
 ): string {
+  const bp = balancePrecision
   const header = [
     'Muestra',
     'A %', 'B %', 'C %',
     `${vertices.A.name || 'A'} g`,
     `${vertices.B.name || 'B'} g`,
     `${vertices.C.name || 'C'} g`,
+    'Balanza g',
+    `${vertices.A.name || 'A'} g práctica`,
+    `${vertices.B.name || 'B'} g práctica`,
+    `${vertices.C.name || 'C'} g práctica`,
     'Estado',
     'Fecha cocción',
     'Temperatura °C',
@@ -75,10 +86,16 @@ export function samplesToCsv(
     const w = calculateSampleWeights(s, sampleWeight)
     const r = results[s.id]
     const eff = getEffectiveFiring(projectFiring, r)
+    const q = bp !== undefined ? quantizeWeights([w.a, w.b, w.c], bp, w.total) : null
+    const pA = q ? formatWeightForPrecision(q.values[0], bp!) : ''
+    const pB = q ? formatWeightForPrecision(q.values[1], bp!) : ''
+    const pC = q ? formatWeightForPrecision(q.values[2], bp!) : ''
     rows.push([
       s.id,
       s.a, s.b, s.c,
       w.a.toFixed(3), w.b.toFixed(3), w.c.toFixed(3),
+      bp ?? '',
+      pA, pB, pC,
       hasMeaningfulResult(r) ? 'Registrado' : 'Sin resultado',
       eff.date ?? '',
       eff.temperature ?? '',

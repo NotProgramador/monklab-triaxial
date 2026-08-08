@@ -1,5 +1,6 @@
 import type { VertexMaterial } from './material'
 import type { FiringResult } from './result'
+import type { BalancePrecision } from '../engine/weighingPrecision'
 
 export const PROJECT_VERSION = 2
 
@@ -22,6 +23,7 @@ export interface TriaxialProject {
   step: number
   sampleWeight: number
   preparationMargin: number
+  balancePrecision?: BalancePrecision
 
   vertices: {
     A: VertexMaterial

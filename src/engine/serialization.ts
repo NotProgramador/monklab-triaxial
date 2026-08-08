@@ -2,6 +2,7 @@ import { PROJECT_VERSION, type TriaxialProject } from '../types/project'
 import type { MaterialType, Recipe, RecipeIngredient, VertexMaterial } from '../types/material'
 import type { FiringAtmosphere, FiringResult, Surface } from '../types/result'
 import { ALLOWED_STEPS } from './generateTriaxial'
+import { isBalancePrecision } from './weighingPrecision'
 import { saveSampleImage } from '../storage/imageStorage'
 
 const ALLOWED_TYPES: readonly MaterialType[] = [
@@ -162,6 +163,8 @@ export function deserializeProject(raw: string | unknown): TriaxialProject {
   const margin = typeof data.preparationMargin === 'number' && Number.isFinite(data.preparationMargin) && data.preparationMargin >= 0
     ? data.preparationMargin : 0
 
+  const balancePrecision = isBalancePrecision(data.balancePrecision) ? data.balancePrecision : undefined
+
   const results: Record<number, FiringResult> = {}
   if (isObject(data.results)) {
     for (const [k, v] of Object.entries(data.results)) {
@@ -182,6 +185,7 @@ export function deserializeProject(raw: string | unknown): TriaxialProject {
     step,
     sampleWeight: sw,
     preparationMargin: margin,
+    balancePrecision,
     vertices: {
       A: validateVertex(vertsIn.A, 'A'),
       B: validateVertex(vertsIn.B, 'B'),

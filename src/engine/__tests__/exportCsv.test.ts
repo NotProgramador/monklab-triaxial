@@ -100,3 +100,40 @@ describe('samplesToCsv con firing efectivo (V1.2.1)', () => {
     expect(row1).toContain('Sin resultado;;;;;;')
   })
 })
+
+describe('samplesToCsv con balancePrecision (V1.3.1)', () => {
+  it('columnas prácticas presentes', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {}, undefined, 0.1)
+    const header = csv.split('\r\n')[0]
+    expect(header).toContain('A g práctica')
+    expect(header).toContain('B g práctica')
+    expect(header).toContain('C g práctica')
+    expect(header).toContain('Balanza g')
+  })
+
+  it('columnas teóricas se preservan sin cambios', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {}, undefined, 0.1)
+    const row9 = csv.split('\r\n').find((r) => r.startsWith('9;'))!
+    // T09: 40/20/40 con 20g → 8/4/8 teóricos
+    expect(row9).toContain(';8.000;')
+    expect(row9).toContain(';4.000;')
+  })
+
+  it('columnas prácticas cuadran con la balanza', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {}, undefined, 0.1)
+    const row9 = csv.split('\r\n').find((r) => r.startsWith('9;'))!
+    // Después de teoricos (8.000/4.000/8.000) viene ";0.1;" y luego prácticas
+    // formateadas a 1 decimal: 8.0/4.0/8.0
+    expect(row9).toContain(';0.1;8.0;4.0;8.0;')
+  })
+
+  it('sin balancePrecision → columnas prácticas vacías', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {})
+    const header = csv.split('\r\n')[0]
+    // Las columnas siguen existiendo (estructura estable)
+    expect(header).toContain('A g práctica')
+    const row1 = csv.split('\r\n').find((r) => r.startsWith('1;'))!
+    // Balanza vacía + 3 prácticas vacías
+    expect(row1).toMatch(/;20\.000;0\.000;0\.000;;;;;/)
+  })
+})

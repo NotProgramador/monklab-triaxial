@@ -3,6 +3,7 @@ import type { FiringResult } from '../../types/result'
 import type { TriaxialSample } from '../../types/triaxial'
 import { calculateSampleWeights } from '../../engine/calculateSampleWeights'
 import { formatWeight } from '../../engine/format'
+import { hasMeaningfulResult } from '../../engine/resultStatus'
 
 interface Props {
   samples: TriaxialSample[]
@@ -32,7 +33,7 @@ export function SamplesTable({ samples, vertices, sampleWeight, selectedId, resu
         <tbody>
           {samples.map((s) => {
             const w = calculateSampleWeights(s, sampleWeight)
-            const r = results[s.id]
+            const registered = hasMeaningfulResult(results[s.id])
             return (
               <tr
                 key={s.id}
@@ -47,10 +48,10 @@ export function SamplesTable({ samples, vertices, sampleWeight, selectedId, resu
                 <td>{formatWeight(w.b)}</td>
                 <td>{formatWeight(w.c)}</td>
                 <td>
-                  {r ? (
-                    <span className="chip chip--ok">Registrado</span>
+                  {registered ? (
+                    <span className="chip chip--ok">● Registrado</span>
                   ) : (
-                    <span className="chip chip--neutral">Sin resultado</span>
+                    <span className="chip chip--neutral">○ Sin registrar</span>
                   )}
                 </td>
               </tr>

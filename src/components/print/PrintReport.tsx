@@ -3,6 +3,7 @@ import { calculateSampleWeights } from '../../engine/calculateSampleWeights'
 import { recipeTotal } from '../../engine/expandRecipe'
 import { buildStandaloneSvg } from '../../engine/exportSvg'
 import { formatDateEs, formatWeight } from '../../engine/format'
+import { hasMeaningfulResult } from '../../engine/resultStatus'
 import type { TriaxialProject } from '../../types/project'
 import type { TriaxialSample } from '../../types/triaxial'
 
@@ -158,7 +159,7 @@ export function PrintReport({ project, samples, preparation }: Props) {
                   <td className="num">{formatWeight(w.a)}</td>
                   <td className="num">{formatWeight(w.b)}</td>
                   <td className="num">{formatWeight(w.c)}</td>
-                  <td>{r ? 'Registrado' : '—'}</td>
+                  <td>{hasMeaningfulResult(r) ? 'Registrado' : '—'}</td>
                 </tr>
               )
             })}

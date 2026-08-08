@@ -3,7 +3,7 @@ import './App.css'
 
 import { generateTriaxial, sampleCountForStep, ALLOWED_STEPS } from './engine/generateTriaxial'
 import { calculatePreparation } from './engine/calculatePreparation'
-import { hasAnyRecipe } from './engine/expandRecipe'
+import { collectInvalidRecipes, hasAnyRecipe } from './engine/expandRecipe'
 import { createDefaultProject } from './engine/defaults'
 import { deserializeProject, serializeProject } from './engine/serialization'
 import { downloadFile, samplesToCsv } from './engine/exportCsv'
@@ -14,6 +14,7 @@ import { SampleInspector } from './components/samples/SampleInspector'
 import { SamplesTable } from './components/samples/SamplesTable'
 import { PreparationSheet } from './components/samples/PreparationSheet'
 import { VertexEditor } from './components/materials/VertexEditor'
+import { VertexCards } from './components/materials/VertexCards'
 import { ProjectHeader } from './components/project/ProjectHeader'
 import { PrintReport } from './components/print/PrintReport'
 import { printLabelsDocument } from './print/printLabelsDocument'
@@ -31,6 +32,7 @@ import {
 
 type Toast = { kind: 'ok' | 'error' | 'warn'; message: string } | null
 type PrintMode = 'none' | 'report'
+type VertexId = 'A' | 'B' | 'C'
 
 function App() {
   const [project, setProject] = useState<TriaxialProject>(() => createDefaultProject())
@@ -39,6 +41,7 @@ function App() {
   const [selectedId, setSelectedId] = useState<number | null>(1)
   const [showGradient, setShowGradient] = useState(true)
   const [mode, setMode] = useState<ViewMode>('formulation')
+  const [activeVertexId, setActiveVertexId] = useState<VertexId>('A')
   const [savedTick, setSavedTick] = useState(0)
   const [toast, setToast] = useState<Toast>(null)
   const [printMode, setPrintMode] = useState<PrintMode>('none')
@@ -71,6 +74,7 @@ function App() {
     [samples, project.vertices, project.sampleWeight, project.preparationMargin],
   )
   const recipesActive = hasAnyRecipe(project.vertices)
+  const invalidRecipes = useMemo(() => collectInvalidRecipes(project.vertices), [project.vertices])
 
   const showToast = useCallback((t: Exclude<Toast, null>) => {
     setToast(t)
@@ -107,7 +111,7 @@ function App() {
     setProject((p) => ({ ...p, ...patch, updatedAt: new Date().toISOString() }))
     setDirty(true)
   }
-  const updateVertex = (id: 'A' | 'B' | 'C', v: VertexMaterial) => {
+  const updateVertex = (id: VertexId, v: VertexMaterial) => {
     update({ vertices: { ...project.vertices, [id]: { ...v, id } } })
   }
   const updateResult = (sampleId: number, r: FiringResult | undefined) => {
@@ -132,6 +136,7 @@ function App() {
     setProject(createDefaultProject())
     setDirty(true)
     setSelectedId(1)
+    setActiveVertexId('A')
   }
   const handleDuplicate = () => {
     const now = new Date().toISOString()
@@ -159,6 +164,7 @@ function App() {
       setProject(p)
       setDirty(false)
       setSelectedId(1)
+      setActiveVertexId('A')
     }
   }
   const handleImport = async (file: File) => {
@@ -202,6 +208,8 @@ function App() {
 
   if (!loaded) return null
 
+  const currentSampleCount = sampleCountForStep(project.step)
+
   return (
     <>
       <main className="app screen-only">
@@ -231,14 +239,16 @@ function App() {
                   type="button"
                   className={`chip-btn ${project.step === s ? 'is-active' : ''}`}
                   onClick={() => update({ step: s })}
+                  aria-pressed={project.step === s}
                 >
-                  {s}% · {sampleCountForStep(s)}
+                  {s}%
                 </button>
               ))}
             </div>
-            {project.step === 5 && (
-              <p className="hint hint-warn">Se generarán 231 muestras.</p>
-            )}
+            <p className="hint">
+              {project.step}% · {currentSampleCount} muestras
+              {project.step === 5 && ' · rendimiento reducido'}
+            </p>
           </div>
 
           <div className="control-group">
@@ -260,7 +270,7 @@ function App() {
           </div>
 
           <div className="control-group">
-            <label htmlFor="mg">Margen de preparación</label>
+            <label htmlFor="mg">Margen preparación</label>
             <div className="input-suffix">
               <input
                 id="mg"
@@ -277,73 +287,103 @@ function App() {
             </div>
           </div>
 
-          <div className="control-group">
-            <label>Vista</label>
+          <div className="control-group control-group--modes">
+            <label>Modo</label>
             <div className="btn-row">
               <button
                 type="button"
                 className={`chip-btn ${mode === 'formulation' ? 'is-active' : ''}`}
                 onClick={() => setMode('formulation')}
+                aria-pressed={mode === 'formulation'}
               >Formulación</button>
               <button
                 type="button"
                 className={`chip-btn ${mode === 'results' ? 'is-active' : ''}`}
                 onClick={() => setMode('results')}
+                aria-pressed={mode === 'results'}
               >Resultados</button>
             </div>
           </div>
 
-          <div className="control-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={showGradient}
-                onChange={(e) => setShowGradient(e.target.checked)}
-              />
-              <span> Degradado teórico</span>
-            </label>
-          </div>
+          {mode === 'formulation' && (
+            <div className="control-group">
+              <label>Vista</label>
+              <label className="checkbox-inline">
+                <input
+                  type="checkbox"
+                  checked={showGradient}
+                  onChange={(e) => setShowGradient(e.target.checked)}
+                />
+                <span>Degradado teórico</span>
+              </label>
+            </div>
+          )}
 
-          <div className="control-group" style={{ marginLeft: 'auto' }}>
-            <button type="button" className="btn-ghost" onClick={handleExportCsv}>CSV</button>
-            <button type="button" className="btn-ghost" onClick={handleExportSvg}>SVG</button>
+          <div className="control-group control-group--exports">
+            <label>Exportar</label>
+            <div className="btn-row">
+              <button type="button" className="btn-ghost" onClick={handleExportCsv}>CSV</button>
+              <button type="button" className="btn-ghost" onClick={handleExportSvg}>SVG</button>
+            </div>
           </div>
         </section>
 
+        {invalidRecipes.length > 0 && (
+          <div className="global-warn" role="status">
+            <strong>Hay recetas incompletas.</strong>
+            <span> Las materias primas expandidas no pueden calcularse mientras {invalidRecipes.map((v) => v.vertexId).join(', ')} no sumen 100 %.</span>
+          </div>
+        )}
+
         <section className="workspace">
-          <div className="vertices-column no-print">
-            <VertexEditor vertex={project.vertices.A} onChange={(v) => updateVertex('A', v)} />
-            <VertexEditor vertex={project.vertices.B} onChange={(v) => updateVertex('B', v)} />
-            <VertexEditor vertex={project.vertices.C} onChange={(v) => updateVertex('C', v)} />
+          <div className="materials-column no-print" id="vertex-editor-panel">
+            <VertexCards
+              vertices={project.vertices}
+              activeId={activeVertexId}
+              onActivate={setActiveVertexId}
+            />
+            <VertexEditor
+              vertex={project.vertices[activeVertexId]}
+              onChange={(v) => updateVertex(activeVertexId, v)}
+            />
           </div>
 
-          <div className="diagram-section">
-            <TriaxialDiagram
-              samples={samples}
-              step={project.step}
-              vertices={project.vertices}
-              selectedSampleId={selectedId}
-              results={project.results}
-              showGradient={showGradient && mode === 'formulation'}
-              mode={mode}
-              onSampleSelect={(s) => setSelectedId(s.id)}
-            />
+          <div className="diagram-stage">
+            <div className="diagram-stage-header">
+              <span className="stage-eyebrow">DIAGRAMA TRIAXIAL</span>
+              <span className="stage-meta">{currentSampleCount} muestras · división {project.step}%</span>
+            </div>
+            <div className="diagram-section">
+              <TriaxialDiagram
+                samples={samples}
+                step={project.step}
+                vertices={project.vertices}
+                selectedSampleId={selectedId}
+                results={project.results}
+                showGradient={showGradient && mode === 'formulation'}
+                mode={mode}
+                sampleWeight={project.sampleWeight}
+                onSampleSelect={(s) => setSelectedId(s.id)}
+              />
+            </div>
             {showGradient && mode === 'formulation' && (
               <p className="disclaimer">
-                Vista cromática aproximada. El degradado representa una interpolación
-                visual de los colores de referencia. No predice el color real después
-                de la cocción.
+                Interpolación visual teórica · no predice el resultado de cocción.
               </p>
             )}
           </div>
 
           <SampleInspector
             sample={selected}
+            samples={samples}
             vertices={project.vertices}
             sampleWeight={project.sampleWeight}
             result={selected ? project.results[selected.id] : undefined}
+            results={project.results}
             projectId={project.id}
+            mode={mode}
             onResultChange={(r) => selected && updateResult(selected.id, r)}
+            onSelect={(id) => setSelectedId(id)}
           />
         </section>
 

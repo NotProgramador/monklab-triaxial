@@ -1,0 +1,60 @@
+import { describe, expect, it } from 'vitest'
+import { samplesToCsv } from '../exportCsv'
+import { generateTriaxial } from '../generateTriaxial'
+import type { VertexMaterial } from '../../types/material'
+import type { FiringResult } from '../../types/result'
+
+const V = {
+  A: { id: 'A', name: 'A', type: 'material', color: '#ffffff' } as VertexMaterial,
+  B: { id: 'B', name: 'B', type: 'material', color: '#000000' } as VertexMaterial,
+  C: { id: 'C', name: 'C', type: 'material', color: '#888888' } as VertexMaterial,
+}
+
+describe('samplesToCsv gloss/opacity/fluidity', () => {
+  it('incluye columnas Brillo/Opacidad/Fluidez', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {})
+    const header = csv.split('\r\n')[0]
+    expect(header).toContain('Brillo')
+    expect(header).toContain('Opacidad')
+    expect(header).toContain('Fluidez')
+  })
+
+  it('exporta valores semánticos para gloss/opacity/fluidity', () => {
+    const results: Record<number, FiringResult> = {
+      1: { gloss: 3, opacity: 1, fluidity: 2 },
+    }
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, results)
+    const rows = csv.split('\r\n')
+    const row1 = rows.find((r) => r.startsWith('1;'))!
+    expect(row1).toContain('Brillante')
+    expect(row1).toContain('Transparente')
+    expect(row1).toContain('Medio')
+  })
+
+  it('filas sin resultado dejan las columnas vacías', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {})
+    const rows = csv.split('\r\n')
+    const row2 = rows.find((r) => r.startsWith('2;'))!
+    // Estado is "Sin resultado" y las nuevas 3 columnas quedan vacías (;;;)
+    expect(row2).toContain('Sin resultado;;;;;;;;;')
+  })
+
+  it('un resultado {} NO se marca como Registrado en CSV', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, { 1: {} })
+    const row1 = csv.split('\r\n').find((r) => r.startsWith('1;'))!
+    expect(row1).toContain('Sin resultado')
+    expect(row1).not.toContain(';Registrado;')
+  })
+
+  it('un resultado con notes en blanco NO se marca como Registrado', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, { 1: { notes: '   ' } })
+    const row1 = csv.split('\r\n').find((r) => r.startsWith('1;'))!
+    expect(row1).toContain('Sin resultado')
+  })
+
+  it('un resultado con gloss:1 sí se marca como Registrado', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, { 1: { gloss: 1 } })
+    const row1 = csv.split('\r\n').find((r) => r.startsWith('1;'))!
+    expect(row1).toContain(';Registrado;')
+  })
+})

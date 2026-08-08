@@ -4,6 +4,7 @@ import {
   type TriangleVertices,
 } from '../../engine/barycentric'
 import { hexToRgb, interpolateBarycentric, rgbToHex } from '../../engine/interpolateColor'
+import { hasMeaningfulResult } from '../../engine/resultStatus'
 import type { VertexMaterial } from '../../types/material'
 import type { FiringResult } from '../../types/result'
 import type { TriaxialSample } from '../../types/triaxial'
@@ -20,6 +21,7 @@ interface Props {
   results: Record<number, FiringResult>
   showGradient: boolean
   mode: ViewMode
+  sampleWeight: number
   onSampleSelect: (sample: TriaxialSample) => void
 }
 
@@ -48,12 +50,14 @@ export function TriaxialDiagram({
   results,
   showGradient,
   mode,
+  sampleWeight,
   onSampleSelect,
 }: Props) {
   const [hovered, setHovered] = useState<TriaxialSample | null>(null)
 
   const nodeRadius = step <= 5 ? 8 : step <= 10 ? 12 : 16
   const fontSize = step <= 5 ? 7 : step <= 10 ? 9 : 11
+  const showLabels = step > 5
 
   const positions = useMemo(
     () => samples.map((s) => ({
@@ -104,7 +108,7 @@ export function TriaxialDiagram({
           const result = results[s.id]
           const observedFill = mode === 'results' && result?.observedColor
             ? result.observedColor : undefined
-          const emptyResult = mode === 'results' && !result
+          const emptyResult = mode === 'results' && !hasMeaningfulResult(result)
 
           return (
             <g
@@ -112,15 +116,31 @@ export function TriaxialDiagram({
               className={`sample-group ${isSelected ? 'is-selected' : ''}`}
               transform={`translate(${p.x} ${p.y})`}
               role="button"
-              tabIndex={0}
+              tabIndex={isSelected ? 0 : -1}
               aria-label={`Muestra ${s.id}: A ${s.a}%, B ${s.b}%, C ${s.c}%`}
               onClick={() => onSampleSelect(s)}
               onMouseEnter={() => setHovered(s)}
               onMouseLeave={() => setHovered(null)}
+              onFocus={() => setHovered(s)}
+              onBlur={() => setHovered(null)}
               onKeyDown={(event) => {
+                const tag = (event.target as HTMLElement).tagName
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault()
                   onSampleSelect(s)
+                  return
+                }
+                if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                  event.preventDefault()
+                  const i = samples.findIndex((x) => x.id === s.id)
+                  const nxt = samples[i + 1]
+                  if (nxt) onSampleSelect(nxt)
+                } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                  event.preventDefault()
+                  const i = samples.findIndex((x) => x.id === s.id)
+                  const prv = samples[i - 1]
+                  if (prv) onSampleSelect(prv)
                 }
               }}
             >
@@ -135,14 +155,16 @@ export function TriaxialDiagram({
                 r={nodeRadius}
                 style={observedFill ? { fill: observedFill } : undefined}
               />
-              <text
-                className="sample-number"
-                style={{ fontSize }}
-                textAnchor="middle"
-                dominantBaseline="central"
-              >
-                {s.id}
-              </text>
+              {(showLabels || isSelected) && (
+                <text
+                  className="sample-number"
+                  style={{ fontSize }}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                >
+                  {s.id}
+                </text>
+              )}
             </g>
           )
         })}
@@ -167,7 +189,16 @@ export function TriaxialDiagram({
         />
       </svg>
 
-      {hovered && <Tooltip sample={hovered} vertices={vertices} triangle={gradientTriangle} />}
+      {hovered && (
+        <Tooltip
+          sample={hovered}
+          vertices={vertices}
+          triangle={gradientTriangle}
+          sampleWeight={sampleWeight}
+          mode={mode}
+          result={results[hovered.id]}
+        />
+      )}
     </div>
   )
 }
@@ -188,11 +219,14 @@ function VertexLabel({
 }
 
 function Tooltip({
-  sample, vertices,
+  sample, vertices, sampleWeight, mode, result,
 }: {
   sample: TriaxialSample
   vertices: { A: VertexMaterial; B: VertexMaterial; C: VertexMaterial }
   triangle: unknown
+  sampleWeight: number
+  mode: ViewMode
+  result: FiringResult | undefined
 }) {
   const col = rgbToHex(interpolateBarycentric(
     sample.a, sample.b, sample.c,
@@ -200,15 +234,25 @@ function Tooltip({
     hexToRgb(vertices.B.color),
     hexToRgb(vertices.C.color),
   ))
+  const wa = (sample.a / 100) * sampleWeight
+  const wb = (sample.b / 100) * sampleWeight
+  const wc = (sample.c / 100) * sampleWeight
+  const fmt = (g: number) => (Math.round(g * 100) / 100).toString().replace(/\.?0+$/, '')
+  const padded = String(sample.id).padStart(2, '0')
   return (
     <div className="diagram-tooltip">
       <div className="tt-header">
-        <span className="tt-swatch" style={{ background: col }} />
-        <strong>Muestra {String(sample.id).padStart(2, '0')}</strong>
+        <span className="tt-swatch" style={{ background: mode === 'results' && result?.observedColor ? result.observedColor : col }} />
+        <strong>T{padded}</strong>
+        {mode === 'results' && (
+          <span className={`tt-flag ${hasMeaningfulResult(result) ? 'is-registered' : 'is-pending'}`}>
+            {hasMeaningfulResult(result) ? '● Registrado' : '○ Sin registrar'}
+          </span>
+        )}
       </div>
-      <div>{vertices.A.name || 'A'} · {sample.a}%</div>
-      <div>{vertices.B.name || 'B'} · {sample.b}%</div>
-      <div>{vertices.C.name || 'C'} · {sample.c}%</div>
+      <div>{vertices.A.name || 'A'} · {sample.a}% · {fmt(wa)} g</div>
+      <div>{vertices.B.name || 'B'} · {sample.b}% · {fmt(wb)} g</div>
+      <div>{vertices.C.name || 'C'} · {sample.c}% · {fmt(wc)} g</div>
     </div>
   )
 }

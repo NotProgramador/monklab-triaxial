@@ -234,4 +234,28 @@ describe('buildStandaloneSvg', () => {
     expect(svg).toContain('100 %')
     expect(svg).not.toContain('class="')
   })
+
+  it('NO dibuja anillo de selección aunque se pase selectedSampleId', () => {
+    const svg = buildStandaloneSvg({
+      samples: generateTriaxial(20),
+      step: 20,
+      vertices: V,
+      selectedSampleId: 13,
+    })
+    expect(svg).not.toContain('sample-node-ring')
+    // Solo hay 21 <circle> — uno por muestra, sin anillo extra
+    const circles = svg.match(/<circle /g) ?? []
+    expect(circles).toHaveLength(21)
+  })
+
+  it('step 5 conserva los 231 números de muestra (documental)', () => {
+    const svg = buildStandaloneSvg({
+      samples: generateTriaxial(5),
+      step: 5,
+      vertices: V,
+    })
+    // Cada muestra emite un <text>...id</text>. 231 muestras + 3 labels de vértice (id) + 3 nombres + 3 percent = 240 <text>
+    const texts = svg.match(/<text /g) ?? []
+    expect(texts.length).toBeGreaterThanOrEqual(231)
+  })
 })

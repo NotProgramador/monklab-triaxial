@@ -1,23 +1,31 @@
 import type { VertexMaterial } from '../../types/material'
 import type { FiringResult } from '../../types/result'
 import type { TriaxialSample } from '../../types/triaxial'
-import { calculateSampleWeights } from '../../engine/calculateSampleWeights'
-import { expandSample, hasAnyRecipe } from '../../engine/expandRecipe'
-import { formatWeight } from '../../engine/format'
-import { ResultEditor } from '../results/ResultEditor'
+import type { ViewMode } from '../triangle/TriaxialDiagram'
+import { countRegistered } from '../../engine/resultStatus'
+import { FormulationInspector } from './FormulationInspector'
+import { ResultsInspector } from './ResultsInspector'
 
 interface Props {
   sample: TriaxialSample | null
+  samples: TriaxialSample[]
   vertices: { A: VertexMaterial; B: VertexMaterial; C: VertexMaterial }
   sampleWeight: number
   result: FiringResult | undefined
+  results: Record<number, FiringResult>
   projectId: string
+  mode: ViewMode
   onResultChange: (r: FiringResult | undefined) => void
+  onSelect: (id: number) => void
 }
 
 export function SampleInspector({
-  sample, vertices, sampleWeight, result, projectId, onResultChange,
+  sample, samples, vertices, sampleWeight, result, results, projectId, mode,
+  onResultChange, onSelect,
 }: Props) {
+  const totalCount = samples.length
+  const registeredCount = countRegistered(samples.map((s) => s.id), results)
+
   if (!sample) {
     return (
       <aside className="sample-inspector">
@@ -31,81 +39,67 @@ export function SampleInspector({
     )
   }
 
-  const w = calculateSampleWeights(sample, sampleWeight)
-  const expansion = hasAnyRecipe(vertices)
-    ? expandSample(sample, vertices, sampleWeight)
-    : null
+  const idx = samples.findIndex((s) => s.id === sample.id)
+  const prev = idx > 0 ? samples[idx - 1] : null
+  const next = idx >= 0 && idx < samples.length - 1 ? samples[idx + 1] : null
+  const padded = String(sample.id).padStart(2, '0')
 
   return (
     <aside className="sample-inspector">
       <div className="inspector-header">
         <div>
           <p className="inspector-eyebrow">MUESTRA</p>
-          <h2>{String(sample.id).padStart(2, '0')}</h2>
+          <h2>T{padded}</h2>
         </div>
-        <div className="sample-total">{sample.a + sample.b + sample.c}%</div>
-      </div>
-
-      <section className="inspector-section">
-        <h3>Composición</h3>
-        <div className="composition-list">
-          <div className="composition-row"><span>{vertices.A.name || 'A'}</span><strong>{sample.a}%</strong></div>
-          <div className="composition-row"><span>{vertices.B.name || 'B'}</span><strong>{sample.b}%</strong></div>
-          <div className="composition-row"><span>{vertices.C.name || 'C'}</span><strong>{sample.c}%</strong></div>
-        </div>
-      </section>
-
-      <section className="inspector-section">
-        <h3>Pesada primaria</h3>
-        <div className="weight-list">
-          <div className="weight-row"><span>{vertices.A.name || 'A'}</span><strong>{formatWeight(w.a)} g</strong></div>
-          <div className="weight-row"><span>{vertices.B.name || 'B'}</span><strong>{formatWeight(w.b)} g</strong></div>
-          <div className="weight-row"><span>{vertices.C.name || 'C'}</span><strong>{formatWeight(w.c)} g</strong></div>
-          <div className="weight-row weight-total"><span>Total</span><strong>{formatWeight(w.total)} g</strong></div>
-        </div>
-      </section>
-
-      {expansion && (
-        <section className="inspector-section">
-          <h3>Pesada expandida</h3>
-          {expansion.valid ? (
-            <div className="weight-list">
-              {expansion.ingredients.map((ing) => (
-                <div key={ing.name} className="weight-row">
-                  <span>{ing.name}</span>
-                  <strong>{formatWeight(ing.grams, 3)} g</strong>
-                </div>
-              ))}
-              <div className="weight-row weight-total">
-                <span>Total</span>
-                <strong>{formatWeight(expansion.ingredients.reduce((s, i) => s + i.grams, 0))} g</strong>
-              </div>
-            </div>
-          ) : (
-            <div className="warn-box">
-              <strong>No disponible.</strong>
-              <ul>
-                {expansion.invalidVertices.map((v) => (
-                  <li key={v.vertexId}>
-                    La receta de <b>{v.name}</b> suma {v.total.toFixed(2)} %.
-                  </li>
-                ))}
-              </ul>
-              <p>Corrige o normaliza la receta para obtener la pesada expandida.</p>
+        <div className="inspector-header-side">
+          <div className="sample-total">{sample.a + sample.b + sample.c}%</div>
+          {mode === 'results' && (
+            <div className="result-count" aria-label="Muestras registradas">
+              {registeredCount} / {totalCount}
             </div>
           )}
-        </section>
-      )}
+        </div>
+      </div>
 
-      <section className="inspector-section">
-        <h3>Resultado de cocción</h3>
-        <ResultEditor
-          projectId={projectId}
-          sampleId={sample.id}
-          result={result}
-          onChange={onResultChange}
+      <nav className="sample-nav" aria-label="Navegación de muestras">
+        <button
+          type="button"
+          className="btn-ghost btn-nav"
+          onClick={() => prev && onSelect(prev.id)}
+          disabled={!prev}
+          aria-label="Muestra anterior"
+        >
+          ‹ Ant.
+        </button>
+        <span className="sample-nav-index">
+          {idx + 1} de {totalCount}
+        </span>
+        <button
+          type="button"
+          className="btn-ghost btn-nav"
+          onClick={() => next && onSelect(next.id)}
+          disabled={!next}
+          aria-label="Muestra siguiente"
+        >
+          Sig. ›
+        </button>
+      </nav>
+
+      {mode === 'formulation' ? (
+        <FormulationInspector
+          sample={sample}
+          vertices={vertices}
+          sampleWeight={sampleWeight}
         />
-      </section>
+      ) : (
+        <ResultsInspector
+          sample={sample}
+          vertices={vertices}
+          result={result}
+          projectId={projectId}
+          onResultChange={onResultChange}
+        />
+      )}
     </aside>
   )
 }

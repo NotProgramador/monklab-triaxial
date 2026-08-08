@@ -2,6 +2,7 @@ import type { VertexMaterial } from '../types/material'
 import type { FiringAtmosphere, FiringResult, Surface } from '../types/result'
 import type { TriaxialSample } from '../types/triaxial'
 import { calculateSampleWeights } from './calculateSampleWeights'
+import { hasMeaningfulResult } from './resultStatus'
 
 const ATMOS_LABEL: Record<FiringAtmosphere, string> = {
   oxidacion: 'Oxidación',
@@ -14,6 +15,21 @@ const SURF_LABEL: Record<Surface, string> = {
   satinada: 'Satinada',
   brillante: 'Brillante',
   variable: 'Variable',
+}
+const LEVEL_LABEL: Record<number, string> = {
+  1: 'Bajo',
+  2: 'Medio',
+  3: 'Alto',
+}
+const GLOSS_LABEL: Record<number, string> = {
+  1: 'Mate',
+  2: 'Satinado',
+  3: 'Brillante',
+}
+const OPACITY_LABEL: Record<number, string> = {
+  1: 'Transparente',
+  2: 'Semitransparente',
+  3: 'Opaco',
 }
 
 function csvEscape(v: string | number | undefined): string {
@@ -42,6 +58,9 @@ export function samplesToCsv(
     'Cono',
     'Atmósfera',
     'Superficie',
+    'Brillo',
+    'Opacidad',
+    'Fluidez',
     'Color observado',
     'Defectos',
     'Notas',
@@ -54,11 +73,14 @@ export function samplesToCsv(
       s.id,
       s.a, s.b, s.c,
       w.a.toFixed(3), w.b.toFixed(3), w.c.toFixed(3),
-      r ? 'Registrado' : 'Sin resultado',
+      hasMeaningfulResult(r) ? 'Registrado' : 'Sin resultado',
       r?.temperature ?? '',
       r?.cone ?? '',
       r?.atmosphere ? ATMOS_LABEL[r.atmosphere] : '',
       r?.surface ? SURF_LABEL[r.surface] : '',
+      r?.gloss ? (GLOSS_LABEL[r.gloss] ?? String(r.gloss)) : '',
+      r?.opacity ? (OPACITY_LABEL[r.opacity] ?? String(r.opacity)) : '',
+      r?.fluidity ? (LEVEL_LABEL[r.fluidity] ?? String(r.fluidity)) : '',
       r?.observedColor ?? '',
       r?.defects ?? '',
       r?.notes ?? '',

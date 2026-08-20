@@ -1173,6 +1173,122 @@
   .cmp-cards { grid-template-columns: 1fr; }
 }
 
+/* Project comparison */
+.cmp-dialog--projects { max-width: min(1400px, 100%); }
+.cmp-section-title {
+  margin: 12px 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+.proj-selector {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+}
+.proj-selector-title { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+.proj-selector-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.proj-selector-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+.proj-selector-item.is-selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.proj-selector-item input[type=checkbox] { margin-top: 2px; }
+.proj-selector-main { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.proj-selector-name { font-weight: 600; font-size: 13px; }
+.proj-selector-meta { font-size: 11px; color: var(--muted); }
+.proj-selector-warn {
+  font-size: 11px;
+  color: var(--warning);
+  background: #fbf5df;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  align-self: center;
+}
+.proj-selector-count { margin: 6px 0 0; font-size: 11px; color: var(--muted); text-align: right; }
+
+.proj-summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.proj-summary-card {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.proj-summary-card h4 { margin: 0 0 6px; font-size: 14px; }
+.proj-summary-card dl { margin: 0; display: grid; gap: 3px; }
+.proj-summary-card dl > div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.proj-summary-card dt { color: var(--muted); margin: 0; }
+.proj-summary-card dd { margin: 0; font-family: var(--font-mono); font-weight: 600; }
+
+.cross-status {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.cross-status--same { background: #edf3ee; color: var(--success); }
+.cross-status--different { background: #fbf5df; color: var(--warning); }
+.cross-status--missing { background: var(--surface-alt); color: var(--muted); }
+.cross-status--identical { background: #edf3ee; color: var(--success); }
+.cross-status--compatible_legacy { background: var(--surface-alt); color: var(--muted); }
+.cross-status--ambiguous { background: #fbf5df; color: var(--warning); }
+
+.cross-conditions-table td, .cross-conditions-table th { text-align: left; font-family: inherit; white-space: normal; }
+.cross-conditions-table td.cross-status { text-align: center; }
+.row-status--different { background: rgba(251,245,223,0.4); }
+
+.common-composition-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.common-composition-filter {
+  display: inline-flex;
+  gap: 12px;
+  font-size: 12px;
+}
+.common-composition-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px;
+  background: var(--surface-alt);
+  border-radius: var(--radius);
+  margin-top: 8px;
+}
+.common-composition-key {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 100px;
+  text-align: center;
+}
+
+.cross-cards { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+@media (max-width: 900px) {
+  .cross-cards { grid-template-columns: 1fr; }
+  .proj-summary-row { grid-template-columns: 1fr; }
+}
+.recipe-diff-table td, .recipe-diff-table th[scope="row"] { text-align: left; font-family: inherit; }
+.recipe-diff-table td:not(:first-child) { text-align: right; font-family: var(--font-mono); }
+
 /* ============ Inspector ============ */
 .sample-inspector {
   padding: 16px 18px;

@@ -22,6 +22,7 @@ import { ExperimentContextPanel } from './components/experiment/ExperimentContex
 import { LibraryPanel } from './components/library/LibraryPanel'
 import { SampleComparisonTray } from './components/comparison/SampleComparisonTray'
 import { SampleComparisonView } from './components/comparison/SampleComparisonView'
+import { ProjectComparisonView } from './components/comparison/ProjectComparisonView'
 import { clampReference, MAX_COMPARISON, toggleComparisonSample } from './engine/comparison'
 import { printLabelsDocument } from './print/printLabelsDocument'
 
@@ -60,6 +61,7 @@ function App() {
   const [comparisonIds, setComparisonIds] = useState<number[]>([])
   const [referenceId, setReferenceId] = useState<number | null>(null)
   const [comparisonOpen, setComparisonOpen] = useState(false)
+  const [projectComparisonOpen, setProjectComparisonOpen] = useState(false)
 
   useEffect(() => {
     listMaterials().then(setLibrary)
@@ -281,6 +283,7 @@ function App() {
           onPrintReport={() => setPrintMode('report')}
           onPrintLabels={() => printLabelsDocument(project.name, samples)}
           onOpenLibrary={() => setLibraryOpen(true)}
+          onCompareProjects={() => setProjectComparisonOpen(true)}
         />
 
         <section className="controls-bar no-print">
@@ -535,6 +538,15 @@ function App() {
         onClose={() => setLibraryOpen(false)}
         onChanged={refreshLibrary}
       />
+
+      {projectComparisonOpen && (
+        <ProjectComparisonView
+          savedProjects={savedProjects}
+          currentProject={project}
+          currentDirty={dirty}
+          onClose={() => setProjectComparisonOpen(false)}
+        />
+      )}
 
       {comparisonOpen && comparisonIds.length >= 2 && (
         <SampleComparisonView

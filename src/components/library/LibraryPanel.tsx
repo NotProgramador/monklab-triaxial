@@ -1,7 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LibraryCategory, LibraryMaterial } from '../../types/libraryMaterial'
 import { CATEGORY_LABEL, LIBRARY_CATEGORIES } from '../../types/libraryMaterial'
 import { normalizeMaterialName } from '../../engine/materialIdentity'
+import {
+  applyImportPlan,
+  LibraryImportError,
+  parseLibraryFile,
+  planImport,
+  serializeLibrary,
+  type ImportPlan,
+} from '../../engine/materialLibraryIO'
+import { PRESET_MEXICO_CDMX } from '../../data/materialPresets'
+import { downloadFile } from '../../engine/exportCsv'
 import {
   deleteMaterial as deleteMat,
   listMaterials,
@@ -26,11 +36,25 @@ function emptyDraft(): DraftMaterial {
   return { name: '', category: 'otro', formula: '', notes: '' }
 }
 
+interface PendingImport {
+  plan: ImportPlan
+  incoming: LibraryMaterial[]
+}
+
+interface PresetPreview {
+  incoming: LibraryMaterial[]
+  plan: ImportPlan
+}
+
 export function LibraryPanel({ open, onClose, onChanged }: Props) {
   const [materials, setMaterials] = useState<LibraryMaterial[]>([])
   const [query, setQuery] = useState('')
   const [draft, setDraft] = useState<DraftMaterial | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
+  const [presetPreview, setPresetPreview] = useState<PresetPreview | null>(null)
+  const [ioError, setIoError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -85,6 +109,73 @@ export function LibraryPanel({ open, onClose, onChanged }: Props) {
     onChanged()
   }
 
+  const handleExport = () => {
+    const raw = serializeLibrary(materials)
+    const today = new Date().toISOString().slice(0, 10)
+    downloadFile(`monklab-materiales-${today}.json`, raw, 'application/json')
+  }
+
+  const handleImportClick = () => {
+    setIoError(null)
+    fileInputRef.current?.click()
+  }
+
+  const handleImportFile = async (file: File | undefined) => {
+    if (!file) return
+    setIoError(null)
+    try {
+      const text = await file.text()
+      const incoming = parseLibraryFile(text)
+      const plan = planImport(incoming, materials)
+      if (plan.newCount === 0 && plan.duplicateCount === 0) {
+        setIoError('El archivo no contiene materiales nuevos.')
+        return
+      }
+      setPendingImport({ plan, incoming })
+    } catch (err) {
+      if (err instanceof LibraryImportError) setIoError(err.message)
+      else setIoError('No se pudo leer el archivo.')
+    }
+  }
+
+  const commitImport = async (onlyNew: boolean) => {
+    if (!pendingImport) return
+    const next = applyImportPlan(pendingImport.plan, materials, onlyNew)
+    // Save only the added materials
+    const existingIds = new Set(materials.map((m) => m.id))
+    const additions = next.filter((m) => !existingIds.has(m.id))
+    for (const m of additions) await saveMaterial(m)
+    setPendingImport(null)
+    setMaterials(await listMaterials())
+    onChanged()
+  }
+
+  const openPresetPreview = () => {
+    const nowIso = new Date().toISOString()
+    const incoming: LibraryMaterial[] = PRESET_MEXICO_CDMX.materials.map((p) => ({
+      id: crypto.randomUUID(),
+      name: p.name,
+      category: p.category,
+      formula: p.formula,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    }))
+    const plan = planImport(incoming, materials)
+    setPresetPreview({ incoming, plan })
+  }
+
+  const commitPreset = async () => {
+    if (!presetPreview) return
+    // Always "only new" for preset — never duplicate by design.
+    const next = applyImportPlan(presetPreview.plan, materials, true)
+    const existingIds = new Set(materials.map((m) => m.id))
+    const additions = next.filter((m) => !existingIds.has(m.id))
+    for (const m of additions) await saveMaterial(m)
+    setPresetPreview(null)
+    setMaterials(await listMaterials())
+    onChanged()
+  }
+
   const removeMaterial = async (m: LibraryMaterial) => {
     if (!confirm(`Eliminar "${m.name}" de la biblioteca? Las recetas conservarán el nombre snapshot.`)) return
     await deleteMat(m.id)
@@ -110,8 +201,86 @@ export function LibraryPanel({ open, onClose, onChanged }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
+          <button type="button" className="btn-ghost" onClick={openPresetPreview}>+ Preset</button>
+          <button type="button" className="btn-ghost" onClick={handleImportClick}>Importar JSON</button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              handleImportFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={handleExport}
+            disabled={materials.length === 0}
+          >Exportar JSON</button>
           <button type="button" className="btn" onClick={startCreate}>+ Nuevo material</button>
         </div>
+
+        {ioError && <p className="library-error">{ioError}</p>}
+
+        {materials.length === 0 && !draft && !pendingImport && !presetPreview && (
+          <div className="library-empty">
+            <p>Tu biblioteca está vacía.</p>
+            <div className="library-empty-actions">
+              <button type="button" className="btn" onClick={openPresetPreview}>Añadir preset México/CDMX</button>
+              <button type="button" className="btn-ghost" onClick={startCreate}>Crear material</button>
+              <button type="button" className="btn-ghost" onClick={handleImportClick}>Importar JSON</button>
+            </div>
+          </div>
+        )}
+
+        {presetPreview && (
+          <div className="library-editor">
+            <h3>{PRESET_MEXICO_CDMX.label}</h3>
+            <p className="hint">{PRESET_MEXICO_CDMX.description}</p>
+            <p>
+              <strong>{presetPreview.plan.newCount}</strong> materiales nuevos
+              {presetPreview.plan.duplicateCount > 0
+                ? ` · ${presetPreview.plan.duplicateCount} se omitirán por nombre existente`
+                : ''}.
+            </p>
+            <div className="library-editor-actions">
+              <button type="button" className="btn-ghost" onClick={() => setPresetPreview(null)}>Cancelar</button>
+              <button
+                type="button"
+                className="btn"
+                onClick={commitPreset}
+                disabled={presetPreview.plan.newCount === 0}
+              >Añadir</button>
+            </div>
+          </div>
+        )}
+
+        {pendingImport && (
+          <div className="library-editor">
+            <h3>Importar biblioteca</h3>
+            <p>
+              <strong>{pendingImport.plan.newCount}</strong> materiales nuevos
+              {pendingImport.plan.duplicateCount > 0
+                ? ` · ${pendingImport.plan.duplicateCount} posibles duplicados`
+                : ''}
+              {pendingImport.plan.identicalCount > 0
+                ? ` · ${pendingImport.plan.identicalCount} idénticos (se omitirán)`
+                : ''}.
+            </p>
+            <div className="library-editor-actions">
+              <button type="button" className="btn-ghost" onClick={() => setPendingImport(null)}>Cancelar</button>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => commitImport(true)}
+                disabled={pendingImport.plan.newCount === 0}
+              >Importar sólo nuevos</button>
+              <button type="button" className="btn" onClick={() => commitImport(false)}>Importar todos</button>
+            </div>
+          </div>
+        )}
 
         <div className="library-list">
           {filtered.length === 0 && (

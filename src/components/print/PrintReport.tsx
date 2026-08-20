@@ -57,31 +57,34 @@ export function PrintReport({ project, samples, preparation }: Props) {
           )}
         </section>
 
-        {hasExperimentContext(project.experiment) && (
-          <section className="print-firing print-experiment">
-            <span className="print-firing-label">EXPERIMENTO</span>
-            <span className="print-firing-line">{formatExperimentSummary(project.experiment)}</span>
-            {project.experiment?.applicationNotes && (
-              <span className="print-firing-sub print-clip">{project.experiment.applicationNotes}</span>
+        {(hasExperimentContext(project.experiment) || hasAnyProjectFiring(project.firing)) && (
+          <section className="print-context-row">
+            {hasExperimentContext(project.experiment) && (
+              <div className="print-firing print-experiment">
+                <span className="print-firing-label">EXPERIMENTO</span>
+                <span className="print-firing-line">{formatExperimentSummary(project.experiment)}</span>
+                {project.experiment?.applicationNotes && (
+                  <span className="print-firing-sub print-clip">{project.experiment.applicationNotes}</span>
+                )}
+              </div>
             )}
-          </section>
-        )}
-
-        {hasAnyProjectFiring(project.firing) && (
-          <section className="print-firing">
-            <span className="print-firing-label">COCCIÓN</span>
-            <span className="print-firing-line">
-              {[
-                project.firing?.date ? formatDateEs(project.firing.date) : null,
-                project.firing?.temperature !== undefined ? `${project.firing.temperature} °C` : null,
-                project.firing?.atmosphere ? atmosphereLabel(project.firing.atmosphere) : null,
-                project.firing?.cone ? `Cono ${project.firing.cone}` : null,
-              ].filter(Boolean).join(' · ')}
-            </span>
-            {(project.firing?.kiln || project.firing?.notes) && (
-              <span className="print-firing-sub">
-                {[project.firing?.kiln, project.firing?.notes].filter(Boolean).join(' · ')}
-              </span>
+            {hasAnyProjectFiring(project.firing) && (
+              <div className="print-firing">
+                <span className="print-firing-label">COCCIÓN</span>
+                <span className="print-firing-line">
+                  {[
+                    project.firing?.date ? formatDateEs(project.firing.date) : null,
+                    project.firing?.temperature !== undefined ? `${project.firing.temperature} °C` : null,
+                    project.firing?.atmosphere ? atmosphereLabel(project.firing.atmosphere) : null,
+                    project.firing?.cone ? `Cono ${project.firing.cone}` : null,
+                  ].filter(Boolean).join(' · ')}
+                </span>
+                {(project.firing?.kiln || project.firing?.notes) && (
+                  <span className="print-firing-sub print-clip">
+                    {[project.firing?.kiln, project.firing?.notes].filter(Boolean).join(' · ')}
+                  </span>
+                )}
+              </div>
             )}
           </section>
         )}

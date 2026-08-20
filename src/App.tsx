@@ -20,6 +20,9 @@ import { PrintReport } from './components/print/PrintReport'
 import { FiringConditionsPanel } from './components/firing/FiringConditionsPanel'
 import { ExperimentContextPanel } from './components/experiment/ExperimentContextPanel'
 import { LibraryPanel } from './components/library/LibraryPanel'
+import { SampleComparisonTray } from './components/comparison/SampleComparisonTray'
+import { SampleComparisonView } from './components/comparison/SampleComparisonView'
+import { clampReference, MAX_COMPARISON, toggleComparisonSample } from './engine/comparison'
 import { printLabelsDocument } from './print/printLabelsDocument'
 
 import type { ExperimentContext, ProjectFiring, TriaxialProject } from './types/project'
@@ -54,6 +57,9 @@ function App() {
   const [printMode, setPrintMode] = useState<PrintMode>('none')
   const [library, setLibrary] = useState<LibraryMaterial[]>([])
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [comparisonIds, setComparisonIds] = useState<number[]>([])
+  const [referenceId, setReferenceId] = useState<number | null>(null)
+  const [comparisonOpen, setComparisonOpen] = useState(false)
 
   useEffect(() => {
     listMaterials().then(setLibrary)
@@ -62,6 +68,21 @@ function App() {
   const refreshLibrary = useCallback(() => {
     listMaterials().then(setLibrary)
   }, [])
+
+  // Toggle a sample in the comparison list (capped at MAX_COMPARISON).
+  const toggleComparison = useCallback((id: number) => {
+    setComparisonIds((prev) => {
+      const next = toggleComparisonSample(prev, id)
+      setReferenceId((ref) => clampReference(next, ref))
+      return next
+    })
+  }, [])
+  const clearComparison = useCallback(() => {
+    setComparisonIds([])
+    setReferenceId(null)
+    setComparisonOpen(false)
+  }, [])
+  const makeReference = useCallback((id: number) => setReferenceId(id), [])
 
   useEffect(() => {
     let cancelled = false
@@ -77,6 +98,15 @@ function App() {
   useEffect(() => { setSavedProjects(listProjects()) }, [savedTick, project.id])
 
   const samples = useMemo(() => generateTriaxial(project.step), [project.step])
+
+  // Clamp comparison against the current sample set (e.g. after changing step).
+  useEffect(() => {
+    const known = new Set(samples.map((s) => s.id))
+    setComparisonIds((prev) => {
+      const filtered = prev.filter((id) => known.has(id))
+      return filtered.length === prev.length ? prev : filtered
+    })
+  }, [samples])
 
   useEffect(() => {
     if (selectedId != null && !samples.find((s) => s.id === selectedId)) {
@@ -399,6 +429,16 @@ function App() {
           />
         )}
 
+        {mode === 'results' && (
+          <SampleComparisonTray
+            comparisonIds={comparisonIds}
+            samples={samples}
+            onRemove={toggleComparison}
+            onClear={clearComparison}
+            onOpen={() => setComparisonOpen(true)}
+          />
+        )}
+
         <section className="workspace">
           <div className="materials-column no-print" id="vertex-editor-panel">
             <VertexCards
@@ -428,6 +468,7 @@ function App() {
                 showGradient={showGradient && mode === 'formulation'}
                 mode={mode}
                 sampleWeight={project.sampleWeight}
+                comparisonIds={comparisonIds}
                 onSampleSelect={(s) => setSelectedId(s.id)}
               />
             </div>
@@ -449,6 +490,9 @@ function App() {
             projectFiring={project.firing}
             balancePrecision={project.balancePrecision}
             mode={mode}
+            comparisonIds={comparisonIds}
+            comparisonMax={MAX_COMPARISON}
+            onToggleComparison={toggleComparison}
             onResultChange={(r) => selected && updateResult(selected.id, r)}
             onSelect={(id) => setSelectedId(id)}
           />
@@ -470,7 +514,10 @@ function App() {
             selectedId={selectedId}
             results={project.results}
             balancePrecision={project.balancePrecision}
+            comparisonIds={comparisonIds}
+            comparisonMax={MAX_COMPARISON}
             onSelect={(s) => setSelectedId(s.id)}
+            onToggleComparison={toggleComparison}
           />
         </section>
 
@@ -488,6 +535,22 @@ function App() {
         onClose={() => setLibraryOpen(false)}
         onChanged={refreshLibrary}
       />
+
+      {comparisonOpen && comparisonIds.length >= 2 && (
+        <SampleComparisonView
+          projectName={project.name}
+          projectId={project.id}
+          vertices={project.vertices}
+          experiment={project.experiment}
+          firing={project.firing}
+          samples={samples}
+          results={project.results}
+          comparisonIds={comparisonIds}
+          referenceId={referenceId}
+          onClose={() => setComparisonOpen(false)}
+          onMakeReference={makeReference}
+        />
+      )}
     </>
   )
 }

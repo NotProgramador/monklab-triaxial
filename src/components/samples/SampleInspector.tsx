@@ -19,12 +19,16 @@ interface Props {
   projectFiring: ProjectFiring | undefined
   balancePrecision?: BalancePrecision
   mode: ViewMode
+  comparisonIds: readonly number[]
+  comparisonMax: number
+  onToggleComparison: (id: number) => void
   onResultChange: (r: FiringResult | undefined) => void
   onSelect: (id: number) => void
 }
 
 export function SampleInspector({
   sample, samples, vertices, sampleWeight, result, results, projectId, projectFiring, balancePrecision, mode,
+  comparisonIds, comparisonMax, onToggleComparison,
   onResultChange, onSelect,
 }: Props) {
   const totalCount = samples.length
@@ -103,6 +107,9 @@ export function SampleInspector({
           result={result}
           projectId={projectId}
           projectFiring={projectFiring}
+          inComparison={comparisonIds.includes(sample.id)}
+          comparisonFull={comparisonIds.length >= comparisonMax && !comparisonIds.includes(sample.id)}
+          onToggleComparison={() => onToggleComparison(sample.id)}
           onResultChange={onResultChange}
         />
       )}

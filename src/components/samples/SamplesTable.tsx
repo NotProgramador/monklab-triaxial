@@ -17,11 +17,15 @@ interface Props {
   selectedId: number | null
   results: Record<number, FiringResult>
   balancePrecision?: BalancePrecision
+  comparisonIds?: readonly number[]
+  comparisonMax?: number
   onSelect: (s: TriaxialSample) => void
+  onToggleComparison?: (id: number) => void
 }
 
 export function SamplesTable({
-  samples, vertices, sampleWeight, selectedId, results, balancePrecision, onSelect,
+  samples, vertices, sampleWeight, selectedId, results, balancePrecision,
+  comparisonIds = [], comparisonMax = 4, onSelect, onToggleComparison,
 }: Props) {
   const bp = balancePrecision
   const format = (v: number, theoretical?: number): { text: string; adjusted: boolean; theoreticalText?: string } => {
@@ -51,6 +55,7 @@ export function SamplesTable({
             <th>{vertices.B.name || 'B'} g</th>
             <th>{vertices.C.name || 'C'} g</th>
             <th>Estado</th>
+            {onToggleComparison && <th aria-label="Comparar">Cmp</th>}
           </tr>
         </thead>
         <tbody>
@@ -61,6 +66,8 @@ export function SamplesTable({
             const gB = q ? format(q.values[1], w.b) : format(w.b)
             const gC = q ? format(q.values[2], w.c) : format(w.c)
             const registered = hasMeaningfulResult(results[s.id])
+            const inCmp = comparisonIds.includes(s.id)
+            const cmpFull = comparisonIds.length >= comparisonMax && !inCmp
             return (
               <tr
                 key={s.id}
@@ -81,6 +88,18 @@ export function SamplesTable({
                     <span className="chip chip--neutral">○ Sin registrar</span>
                   )}
                 </td>
+                {onToggleComparison && (
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      className={`btn-ghost btn-tiny ${inCmp ? 'is-active' : ''}`}
+                      onClick={() => onToggleComparison(s.id)}
+                      disabled={cmpFull}
+                      aria-pressed={inCmp}
+                      title={cmpFull ? 'Máximo 4 muestras' : inCmp ? 'Quitar de comparación' : 'Añadir a comparación'}
+                    >{inCmp ? '✓' : '+'}</button>
+                  </td>
+                )}
               </tr>
             )
           })}

@@ -22,6 +22,7 @@ interface Props {
   showGradient: boolean
   mode: ViewMode
   sampleWeight: number
+  comparisonIds?: readonly number[]
   onSampleSelect: (sample: TriaxialSample) => void
 }
 
@@ -51,8 +52,10 @@ export function TriaxialDiagram({
   showGradient,
   mode,
   sampleWeight,
+  comparisonIds = [],
   onSampleSelect,
 }: Props) {
+  const inComparison = new Set(comparisonIds)
   const [hovered, setHovered] = useState<TriaxialSample | null>(null)
 
   const nodeRadius = step <= 5 ? 8 : step <= 10 ? 12 : 16
@@ -148,6 +151,12 @@ export function TriaxialDiagram({
                 <circle
                   className="sample-node-ring"
                   r={nodeRadius + 5}
+                />
+              )}
+              {inComparison.has(s.id) && (
+                <circle
+                  className="sample-node-cmp"
+                  r={nodeRadius + 2}
                 />
               )}
               <circle

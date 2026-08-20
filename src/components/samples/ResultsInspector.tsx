@@ -16,11 +16,15 @@ interface Props {
   result: FiringResult | undefined
   projectId: string
   projectFiring: ProjectFiring | undefined
+  inComparison: boolean
+  comparisonFull: boolean
+  onToggleComparison: () => void
   onResultChange: (r: FiringResult | undefined) => void
 }
 
 export function ResultsInspector({
-  sample, vertices, result, projectId, projectFiring, onResultChange,
+  sample, vertices, result, projectId, projectFiring,
+  inComparison, comparisonFull, onToggleComparison, onResultChange,
 }: Props) {
   const registered = hasMeaningfulResult(result)
   const effective = getEffectiveFiring(projectFiring, result)
@@ -55,6 +59,19 @@ export function ResultsInspector({
           <span aria-hidden>{registered ? '●' : '○'}</span>
           <span>{registered ? 'Registrado' : 'Sin registrar'}</span>
         </div>
+        <button
+          type="button"
+          className={`btn-ghost btn-compare ${inComparison ? 'is-active' : ''}`}
+          onClick={onToggleComparison}
+          disabled={comparisonFull}
+          aria-pressed={inComparison}
+          title={comparisonFull ? 'Máximo 4 muestras en comparación' : undefined}
+        >
+          {inComparison ? '✓ En comparación' : '+ Añadir a comparación'}
+        </button>
+        {comparisonFull && (
+          <p className="hint">Máximo 4 muestras.</p>
+        )}
       </section>
 
       {hasEffective && (

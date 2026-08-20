@@ -1,9 +1,10 @@
 import type { VertexMaterial } from '../types/material'
-import type { ProjectFiring } from '../types/project'
+import type { ExperimentContext, ProjectFiring } from '../types/project'
 import type { FiringAtmosphere, FiringResult, Surface } from '../types/result'
 import type { TriaxialSample } from '../types/triaxial'
 import { calculateSampleWeights } from './calculateSampleWeights'
 import { getEffectiveFiring } from './effectiveFiring'
+import { APPLICATION_METHOD_LABELS } from './experimentContext'
 import { hasMeaningfulResult } from './resultStatus'
 import {
   formatWeightForPrecision,
@@ -55,8 +56,10 @@ export function samplesToCsv(
   results: Record<number, FiringResult>,
   projectFiring?: ProjectFiring,
   balancePrecision?: BalancePrecision,
+  experiment?: ExperimentContext,
 ): string {
   const bp = balancePrecision
+  const exp = experiment ?? {}
   const header = [
     'Muestra',
     'A %', 'B %', 'C %',
@@ -80,6 +83,11 @@ export function samplesToCsv(
     'Color observado',
     'Defectos',
     'Notas',
+    'Soporte',
+    'Bizcocho °C',
+    'Método aplicación',
+    'Capas',
+    'Notas aplicación',
   ]
   const rows: string[] = [header.map(csvEscape).join(';')]
   for (const s of samples) {
@@ -109,6 +117,11 @@ export function samplesToCsv(
       r?.observedColor ?? '',
       r?.defects ?? '',
       r?.notes ?? '',
+      exp.substrate ?? '',
+      exp.bisqueTemperature ?? '',
+      exp.applicationMethod ? APPLICATION_METHOD_LABELS[exp.applicationMethod] : '',
+      exp.coats ?? '',
+      exp.applicationNotes ?? '',
     ].map(csvEscape).join(';'))
   }
   return '﻿' + rows.join('\r\n')

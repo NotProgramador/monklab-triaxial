@@ -13,6 +13,16 @@ export interface ProjectFiring {
   notes?: string
 }
 
+export type ApplicationMethod = 'brocha' | 'inmersion' | 'vertido' | 'pistola' | 'otro'
+
+export interface ExperimentContext {
+  substrate?: string
+  bisqueTemperature?: number
+  applicationMethod?: ApplicationMethod
+  coats?: number
+  applicationNotes?: string
+}
+
 export interface TriaxialProject {
   version: number
   id: string
@@ -32,6 +42,7 @@ export interface TriaxialProject {
   }
 
   firing?: ProjectFiring
+  experiment?: ExperimentContext
   results: Record<number, FiringResult>
 }
 

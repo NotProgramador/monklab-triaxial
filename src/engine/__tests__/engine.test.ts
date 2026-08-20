@@ -288,6 +288,52 @@ describe('serialization', () => {
     expect(rt.vertices.A.recipe!.ingredients[0].name).toBe('Caolín')
   })
 
+  it('roundtrip experiment (V1.4.1)', () => {
+    const p = createDefaultProject('T')
+    p.experiment = {
+      substrate: 'Loza blanca', bisqueTemperature: 950,
+      applicationMethod: 'inmersion', coats: 2,
+      applicationNotes: 'Aplicación uniforme.',
+    }
+    const rt = deserializeProject(serializeProject(p))
+    expect(rt.experiment).toMatchObject(p.experiment)
+  })
+
+  it('experiment inválido descarta campos sin cambiar otros', () => {
+    const rt = deserializeProject(JSON.stringify({
+      version: 2, vertices: { A: {}, B: {}, C: {} }, step: 20, sampleWeight: 20,
+      experiment: {
+        substrate: 'Loza',
+        bisqueTemperature: -5,       // inválido → undefined
+        applicationMethod: 'aerografo', // no permitido → undefined
+        coats: 2.5,                  // no integer → undefined
+        applicationNotes: 'ok',
+      },
+    }))
+    expect(rt.experiment).toMatchObject({
+      substrate: 'Loza',
+      applicationNotes: 'ok',
+    })
+    expect(rt.experiment?.bisqueTemperature).toBeUndefined()
+    expect(rt.experiment?.applicationMethod).toBeUndefined()
+    expect(rt.experiment?.coats).toBeUndefined()
+  })
+
+  it('coats 0 → undefined', () => {
+    const rt = deserializeProject(JSON.stringify({
+      version: 2, vertices: { A: {}, B: {}, C: {} }, step: 20, sampleWeight: 20,
+      experiment: { coats: 0 },
+    }))
+    expect(rt.experiment?.coats).toBeUndefined()
+  })
+
+  it('proyecto sin experiment → undefined', () => {
+    const rt = deserializeProject(JSON.stringify({
+      version: 2, vertices: { A: {}, B: {}, C: {} }, step: 20, sampleWeight: 20,
+    }))
+    expect(rt.experiment).toBeUndefined()
+  })
+
   it('materialId con enlace roto no rompe cálculo', () => {
     // Simular proyecto exportado con IDs que no existen en biblioteca destino
     const raw = JSON.stringify({

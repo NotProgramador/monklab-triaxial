@@ -1,4 +1,4 @@
-import { PROJECT_VERSION, type TriaxialProject } from '../types/project'
+import { PROJECT_VERSION, type ApplicationMethod, type ExperimentContext, type TriaxialProject } from '../types/project'
 import type { MaterialType, Recipe, RecipeIngredient, VertexMaterial } from '../types/material'
 import type { FiringAtmosphere, FiringResult, Surface } from '../types/result'
 import { ALLOWED_STEPS } from './generateTriaxial'
@@ -11,6 +11,7 @@ const ALLOWED_TYPES: readonly MaterialType[] = [
 ]
 const ALLOWED_ATMOS: readonly FiringAtmosphere[] = ['oxidacion', 'reduccion', 'neutra', 'otro']
 const ALLOWED_SURF: readonly Surface[] = ['mate', 'satinada', 'brillante', 'variable']
+const ALLOWED_APP_METHOD: readonly ApplicationMethod[] = ['brocha', 'inmersion', 'vertido', 'pistola', 'otro']
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 
@@ -63,6 +64,22 @@ function validateVertex(v: unknown, id: 'A' | 'B' | 'C'): VertexMaterial {
 
 function validateLevel(v: unknown): 1 | 2 | 3 | undefined {
   return v === 1 || v === 2 || v === 3 ? v : undefined
+}
+
+function validateExperiment(v: Record<string, unknown>): ExperimentContext {
+  const method = ALLOWED_APP_METHOD.includes(v.applicationMethod as ApplicationMethod)
+    ? (v.applicationMethod as ApplicationMethod) : undefined
+  const bisque = typeof v.bisqueTemperature === 'number' && Number.isFinite(v.bisqueTemperature) && v.bisqueTemperature >= 0
+    ? v.bisqueTemperature : undefined
+  const coats = typeof v.coats === 'number' && Number.isFinite(v.coats) && Number.isInteger(v.coats) && v.coats >= 1
+    ? v.coats : undefined
+  return {
+    substrate: typeof v.substrate === 'string' ? v.substrate : undefined,
+    bisqueTemperature: bisque,
+    applicationMethod: method,
+    coats,
+    applicationNotes: typeof v.applicationNotes === 'string' ? v.applicationNotes : undefined,
+  }
 }
 
 function validateResult(v: unknown): FiringResult {
@@ -192,6 +209,7 @@ export function deserializeProject(raw: string | unknown): TriaxialProject {
       B: validateVertex(vertsIn.B, 'B'),
       C: validateVertex(vertsIn.C, 'C'),
     },
+    experiment: isObject(data.experiment) ? validateExperiment(data.experiment) : undefined,
     firing: isObject(data.firing) ? {
       date: typeof data.firing.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.firing.date)
         ? data.firing.date : undefined,

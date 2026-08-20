@@ -101,6 +101,44 @@ describe('samplesToCsv con firing efectivo (V1.2.1)', () => {
   })
 })
 
+describe('samplesToCsv con ExperimentContext (V1.4.1)', () => {
+  const exp = {
+    substrate: 'Loza blanca',
+    bisqueTemperature: 950,
+    applicationMethod: 'inmersion' as const,
+    coats: 2,
+    applicationNotes: 'Aplicación uniforme.',
+  }
+  it('incluye columnas Soporte/Bizcocho/Método aplicación/Capas/Notas aplicación', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {}, undefined, undefined, exp)
+    const header = csv.split('\r\n')[0]
+    expect(header).toContain('Soporte')
+    expect(header).toContain('Bizcocho °C')
+    expect(header).toContain('Método aplicación')
+    expect(header).toContain('Capas')
+    expect(header).toContain('Notas aplicación')
+  })
+
+  it('exporta método humano y no token interno', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {}, undefined, undefined, exp)
+    const row9 = csv.split('\r\n').find((r) => r.startsWith('9;'))!
+    expect(row9).toContain('Loza blanca')
+    expect(row9).toContain(';950;')
+    expect(row9).toContain('Inmersión')
+    expect(row9).not.toContain(';inmersion;')
+    expect(row9).toContain(';2;')
+    expect(row9).toContain('Aplicación uniforme.')
+  })
+
+  it('cada fila repite el contexto (autocontenido)', () => {
+    const csv = samplesToCsv(generateTriaxial(20), V, 20, {}, undefined, undefined, exp)
+    for (let id = 1; id <= 21; id++) {
+      const row = csv.split('\r\n').find((r) => r.startsWith(`${id};`))!
+      expect(row).toContain('Loza blanca')
+    }
+  })
+})
+
 describe('samplesToCsv con balancePrecision (V1.3.1)', () => {
   it('columnas prácticas presentes', () => {
     const csv = samplesToCsv(generateTriaxial(20), V, 20, {}, undefined, 0.1)

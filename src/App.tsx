@@ -18,10 +18,11 @@ import { VertexCards } from './components/materials/VertexCards'
 import { ProjectHeader } from './components/project/ProjectHeader'
 import { PrintReport } from './components/print/PrintReport'
 import { FiringConditionsPanel } from './components/firing/FiringConditionsPanel'
+import { ExperimentContextPanel } from './components/experiment/ExperimentContextPanel'
 import { LibraryPanel } from './components/library/LibraryPanel'
 import { printLabelsDocument } from './print/printLabelsDocument'
 
-import type { ProjectFiring, TriaxialProject } from './types/project'
+import type { ExperimentContext, ProjectFiring, TriaxialProject } from './types/project'
 import type { VertexMaterial } from './types/material'
 import type { LibraryMaterial } from './types/libraryMaterial'
 import type { FiringResult } from './types/result'
@@ -139,6 +140,9 @@ function App() {
   const updateFiring = (firing: ProjectFiring) => {
     update({ firing })
   }
+  const updateExperiment = (experiment: ExperimentContext) => {
+    update({ experiment })
+  }
 
   const handleSave = () => {
     const res = saveProject(project)
@@ -208,7 +212,7 @@ function App() {
   const handleExportCsv = () => {
     downloadFile(
       `${slug(project.name)}.csv`,
-      samplesToCsv(samples, project.vertices, project.sampleWeight, project.results, project.firing, project.balancePrecision),
+      samplesToCsv(samples, project.vertices, project.sampleWeight, project.results, project.firing, project.balancePrecision, project.experiment),
       'text/csv;charset=utf-8',
     )
   }
@@ -382,6 +386,11 @@ function App() {
             <span> Las materias primas expandidas no pueden calcularse mientras {invalidRecipes.map((v) => v.vertexId).join(', ')} no sumen 100 %.</span>
           </div>
         )}
+
+        <ExperimentContextPanel
+          experiment={project.experiment}
+          onChange={updateExperiment}
+        />
 
         {mode === 'results' && (
           <FiringConditionsPanel

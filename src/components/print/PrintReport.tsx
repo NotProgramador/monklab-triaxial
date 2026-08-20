@@ -4,6 +4,10 @@ import { recipeTotal } from '../../engine/expandRecipe'
 import { buildStandaloneSvg } from '../../engine/exportSvg'
 import { formatDateEs, formatWeight } from '../../engine/format'
 import { atmosphereLabel, hasAnyProjectFiring } from '../../engine/effectiveFiring'
+import {
+  formatExperimentSummary,
+  hasExperimentContext,
+} from '../../engine/experimentContext'
 import { hasMeaningfulResult } from '../../engine/resultStatus'
 import {
   formatWeightForPrecision,
@@ -52,6 +56,16 @@ export function PrintReport({ project, samples, preparation }: Props) {
             <div><span>Balanza</span><b>{project.balancePrecision} g</b></div>
           )}
         </section>
+
+        {hasExperimentContext(project.experiment) && (
+          <section className="print-firing print-experiment">
+            <span className="print-firing-label">EXPERIMENTO</span>
+            <span className="print-firing-line">{formatExperimentSummary(project.experiment)}</span>
+            {project.experiment?.applicationNotes && (
+              <span className="print-firing-sub print-clip">{project.experiment.applicationNotes}</span>
+            )}
+          </section>
+        )}
 
         {hasAnyProjectFiring(project.firing) && (
           <section className="print-firing">

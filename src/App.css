@@ -424,8 +424,36 @@
 .triaxial-diagram-container {
   aspect-ratio: 800 / 760;
   width: 100%;
-  max-width: min(100%, calc((100vh - 260px) * (800 / 760)));
+  /*
+   * Reserved vertical space above the triangle in the 3-column desktop layout
+   * (header + controls + experiment summary + workspace gaps).
+   * Base value assumes a comfortable viewport (>= 820px tall).
+   */
+  max-width: min(100%, calc((100vh - 270px) * (800 / 760)));
   margin: 0 auto;
+}
+
+/*
+ * Low-height desktops (≈1366×768) need extra reserve so the experiment panel
+ * summary doesn't push the triangle's base below the fold. Only applied when
+ * the 3-column layout is still active (>=1280px wide), so this doesn't
+ * further shrink the already-narrow 2-column and mobile layouts.
+ */
+@media (max-height: 800px) and (min-width: 1280px) {
+  .triaxial-diagram-container {
+    max-width: min(100%, calc((100vh - 340px) * (800 / 760)));
+  }
+}
+
+/*
+ * Results mode adds the firing panel above the workspace, so reserve extra
+ * vertical space to keep the triangle base inside the fold. Only applied on
+ * the 3-column desktop layout — mobile and 2-column layouts scroll naturally.
+ */
+@media (min-width: 1280px) {
+  body:has(.firing-panel) .triaxial-diagram-container {
+    max-width: min(100%, calc((100vh - 350px) * (800 / 760)));
+  }
 }
 .gradient-canvas {
   position: absolute;
@@ -508,6 +536,52 @@
   font-size: 12px;
 }
 .global-warn strong { color: #5a4400; }
+
+/* Experiment context panel (V1.4.1) — same shape as firing panel */
+.experiment-panel {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  display: grid;
+  gap: 10px;
+}
+.experiment-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.experiment-panel-summary { display: grid; gap: 2px; min-width: 0; }
+.experiment-panel-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+}
+.experiment-panel-line {
+  font-size: 13px;
+  font-weight: 600;
+}
+.experiment-panel-sub {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.experiment-panel-body {
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+}
+.experiment-panel-body .field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
 
 /* Firing panel */
 .firing-panel {
@@ -599,6 +673,15 @@
 .print-firing-label { font-size: 7pt; letter-spacing: 2pt; color: #444; font-weight: 700; }
 .print-firing-line { font-size: 10pt; font-weight: 600; }
 .print-firing-sub { font-size: 9pt; color: #555; }
+.print-experiment { margin-bottom: 5pt; }
+/* Prevent long application notes from pushing the diagram to page 2 */
+.print-clip {
+  max-height: 2.4em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
 
 /* Balance / weighing precision */
 .control-group--balance { border: 0; padding: 0; margin: 0; min-inline-size: auto; }

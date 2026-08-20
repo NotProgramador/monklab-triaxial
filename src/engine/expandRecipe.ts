@@ -1,10 +1,12 @@
 import type { VertexMaterial, Recipe } from '../types/material'
 import type { TriaxialSample } from '../types/triaxial'
 import { calculateSampleWeights } from './calculateSampleWeights'
+import { ingredientKey } from './materialIdentity'
 
 export interface ExpandedIngredient {
   name: string
   grams: number
+  materialId?: string
 }
 
 export type InvalidVertex = { vertexId: 'A' | 'B' | 'C'; name: string; total: number }
@@ -80,6 +82,7 @@ function expandVertexStrict(vertex: VertexMaterial, grams: number): VertexExpans
   const ingredients = vertex.recipe.ingredients.map((ing) => ({
     name: ing.name,
     grams: (ing.percentage / 100) * grams,
+    materialId: ing.materialId,
   }))
   return { valid: true, ingredients }
 }
@@ -115,16 +118,19 @@ export function expandSample(
 }
 
 export function aggregateIngredients(parts: ExpandedIngredient[]): ExpandedIngredient[] {
-  const map = new Map<string, number>()
+  const grams = new Map<string, number>()
   const displayNames = new Map<string, string>()
+  const materialIds = new Map<string, string | undefined>()
   for (const p of parts) {
-    const key = p.name.trim().toLowerCase()
-    map.set(key, (map.get(key) ?? 0) + p.grams)
+    const key = ingredientKey(p.materialId, p.name)
+    grams.set(key, (grams.get(key) ?? 0) + p.grams)
     if (!displayNames.has(key)) displayNames.set(key, p.name.trim())
+    if (p.materialId && !materialIds.has(key)) materialIds.set(key, p.materialId)
   }
-  return Array.from(map.entries()).map(([key, grams]) => ({
+  return Array.from(grams.entries()).map(([key, g]) => ({
     name: displayNames.get(key) ?? key,
-    grams,
+    grams: g,
+    materialId: materialIds.get(key),
   }))
 }
 

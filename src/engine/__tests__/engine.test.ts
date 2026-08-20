@@ -273,6 +273,39 @@ describe('serialization', () => {
     expect(rt.balancePrecision).toBeUndefined()
   })
 
+  it('roundtrip materialId en ingredientes (V1.3.2)', () => {
+    const p = createDefaultProject('T')
+    p.vertices.A.recipe = {
+      ingredients: [
+        { id: 'i1', materialId: 'mat-caolin', name: 'Caolín', percentage: 60 },
+        { id: 'i2', name: 'Otro libre', percentage: 40 },
+      ],
+    }
+    const rt = deserializeProject(serializeProject(p))
+    expect(rt.vertices.A.recipe!.ingredients[0].materialId).toBe('mat-caolin')
+    expect(rt.vertices.A.recipe!.ingredients[1].materialId).toBeUndefined()
+    // Snapshot name portable
+    expect(rt.vertices.A.recipe!.ingredients[0].name).toBe('Caolín')
+  })
+
+  it('materialId con enlace roto no rompe cálculo', () => {
+    // Simular proyecto exportado con IDs que no existen en biblioteca destino
+    const raw = JSON.stringify({
+      version: 2,
+      vertices: {
+        A: { id: 'A', name: 'A', color: '#ffffff',
+             recipe: { ingredients: [
+               { id: 'i1', materialId: 'no-existe', name: 'Caolín', percentage: 100 },
+             ] } },
+        B: {}, C: {},
+      },
+      step: 20, sampleWeight: 20,
+    })
+    const rt = deserializeProject(raw)
+    expect(rt.vertices.A.recipe!.ingredients[0].materialId).toBe('no-existe')
+    expect(rt.vertices.A.recipe!.ingredients[0].name).toBe('Caolín')
+  })
+
   it('rechaza percentage NaN convirtiéndolo a 0', () => {
     const p = deserializeProject(JSON.stringify({
       version: 1,

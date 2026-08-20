@@ -1,6 +1,4 @@
-const DB_NAME = 'monklab-triaxial'
-const DB_VERSION = 1
-const STORE = 'images'
+import { IMAGES_STORE as STORE, openDb, txStore } from './indexedDb'
 
 function key(projectId: string, sampleId: number): string {
   return `${projectId}::${sampleId}`
@@ -15,35 +13,8 @@ interface ImageRecord {
   updatedAt: string
 }
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    if (typeof indexedDB === 'undefined') {
-      reject(new Error('IndexedDB no disponible'))
-      return
-    }
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(STORE)) {
-        const store = db.createObjectStore(STORE, { keyPath: 'key' })
-        store.createIndex('projectId', 'projectId', { unique: false })
-      }
-    }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error ?? new Error('IndexedDB error'))
-  })
-}
-
 async function tx<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  const db = await openDb()
-  return new Promise<T>((resolve, reject) => {
-    const t = db.transaction(STORE, mode)
-    const store = t.objectStore(STORE)
-    const req = fn(store)
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-    t.onerror = () => reject(t.error)
-  })
+  return txStore(STORE, mode, fn)
 }
 
 export async function saveSampleImage(

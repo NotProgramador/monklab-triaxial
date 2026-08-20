@@ -15,12 +15,13 @@ interface Props {
   onExport: () => void
   onPrintReport: () => void
   onPrintLabels: () => void
+  onOpenLibrary: () => void
 }
 
 export function ProjectHeader({
   project, savedProjects, dirty,
   onRename, onNew, onSave, onDuplicate, onDelete, onOpen,
-  onImport, onExport, onPrintReport, onPrintLabels,
+  onImport, onExport, onPrintReport, onPrintLabels, onOpenLibrary,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
@@ -69,6 +70,8 @@ export function ProjectHeader({
                 }}
               />
             </label>
+            <hr />
+            <button type="button" onClick={() => { onOpenLibrary(); closeMenu() }}>Materiales…</button>
             <hr />
             <button type="button" onClick={() => { onPrintReport(); closeMenu() }}>Imprimir informe</button>
             <button type="button" onClick={() => { onPrintLabels(); closeMenu() }}>Imprimir etiquetas</button>

@@ -18,13 +18,16 @@ import { VertexCards } from './components/materials/VertexCards'
 import { ProjectHeader } from './components/project/ProjectHeader'
 import { PrintReport } from './components/print/PrintReport'
 import { FiringConditionsPanel } from './components/firing/FiringConditionsPanel'
+import { LibraryPanel } from './components/library/LibraryPanel'
 import { printLabelsDocument } from './print/printLabelsDocument'
 
 import type { ProjectFiring, TriaxialProject } from './types/project'
 import type { VertexMaterial } from './types/material'
+import type { LibraryMaterial } from './types/libraryMaterial'
 import type { FiringResult } from './types/result'
 import type { BalancePrecision } from './engine/weighingPrecision'
 import { isRepresentable } from './engine/weighingPrecision'
+import { listMaterials } from './storage/materialLibraryStorage'
 import {
   deleteProject as delProject,
   listProjects,
@@ -48,6 +51,16 @@ function App() {
   const [savedTick, setSavedTick] = useState(0)
   const [toast, setToast] = useState<Toast>(null)
   const [printMode, setPrintMode] = useState<PrintMode>('none')
+  const [library, setLibrary] = useState<LibraryMaterial[]>([])
+  const [libraryOpen, setLibraryOpen] = useState(false)
+
+  useEffect(() => {
+    listMaterials().then(setLibrary)
+  }, [])
+
+  const refreshLibrary = useCallback(() => {
+    listMaterials().then(setLibrary)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -233,6 +246,7 @@ function App() {
           onExport={handleExport}
           onPrintReport={() => setPrintMode('report')}
           onPrintLabels={() => printLabelsDocument(project.name, samples)}
+          onOpenLibrary={() => setLibraryOpen(true)}
         />
 
         <section className="controls-bar no-print">
@@ -385,6 +399,7 @@ function App() {
             />
             <VertexEditor
               vertex={project.vertices[activeVertexId]}
+              library={library}
               onChange={(v) => updateVertex(activeVertexId, v)}
             />
           </div>
@@ -458,6 +473,12 @@ function App() {
       {printMode === 'report' && (
         <PrintReport project={project} samples={samples} preparation={preparation} />
       )}
+
+      <LibraryPanel
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onChanged={refreshLibrary}
+      />
     </>
   )
 }

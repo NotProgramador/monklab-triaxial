@@ -33,7 +33,8 @@ function validateIngredient(v: unknown, i: number): RecipeIngredient {
   const name = typeof v.name === 'string' ? v.name : ''
   const pct = typeof v.percentage === 'number' && Number.isFinite(v.percentage) && v.percentage >= 0
     ? v.percentage : 0
-  return { id, name, percentage: pct }
+  const materialId = typeof v.materialId === 'string' && v.materialId ? v.materialId : undefined
+  return { id, materialId, name, percentage: pct }
 }
 
 function validateRecipe(v: unknown): Recipe | undefined {

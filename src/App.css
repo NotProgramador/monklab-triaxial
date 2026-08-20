@@ -674,6 +674,168 @@
   font-style: italic;
 }
 
+/* Material library */
+.btn-tiny { padding: 3px 8px; font-size: 11px; }
+.recipe-row-wrap { display: grid; gap: 4px; padding-bottom: 6px; border-bottom: 1px dashed rgba(0,0,0,0.04); }
+.recipe-row-wrap:last-child { border-bottom: 0; }
+.recipe-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-left: 2px;
+}
+.recipe-link-actions { display: inline-flex; gap: 4px; margin-left: auto; }
+.material-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.material-chip--linked { background: #edf3ee; color: var(--success); }
+.material-chip--broken { background: #fbebea; color: var(--danger); }
+
+.material-picker {
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-alt);
+  display: grid;
+  gap: 6px;
+}
+.material-picker input[type=text] {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 13px;
+}
+.material-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  display: grid;
+  gap: 2px;
+}
+.material-picker-item {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font: inherit;
+}
+.material-picker-item:hover { background: var(--surface); }
+.mp-name { font-weight: 600; font-size: 13px; }
+.mp-cat {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.library-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(29,29,29,0.32);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  z-index: 200;
+}
+.library-panel {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 80px);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  overflow: hidden;
+}
+.library-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.library-panel-head h2 { margin: 4px 0 0; font-size: 22px; }
+.library-toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 12px 20px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.library-toolbar input[type=search] {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.library-list {
+  padding: 8px 20px 16px;
+  overflow-y: auto;
+  display: grid;
+  gap: 4px;
+}
+.library-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.library-row-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; min-width: 0; }
+.library-row-name { font-weight: 600; font-size: 14px; }
+.library-row-cat {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+.library-row-formula {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.library-row-actions { display: inline-flex; gap: 6px; flex-shrink: 0; }
+.library-editor {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-alt);
+  display: grid;
+  gap: 10px;
+}
+.library-editor h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+.library-editor-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.library-error {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  background: #fbf5df;
+  color: #6e5300;
+  font-size: 12px;
+}
+
 /* ============ Inspector ============ */
 .sample-inspector {
   padding: 16px 18px;

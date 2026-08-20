@@ -124,6 +124,16 @@ describe('quantizeWeights básico', () => {
   })
 })
 
+describe('quantize preserva identidad con materialId (V1.3.2)', () => {
+  it('T09 canónico @ 0.1: valores exactos independientemente de materialId', () => {
+    // Los valores prácticos dependen solo de teoricos, no de materialId.
+    const teor = [8.68, 3.84, 3.92, 3.08, 0.32, 0.16]
+    const q = quantizeWeights(teor, 0.1, 20)
+    expect(q.values).toEqual([8.7, 3.8, 3.9, 3.1, 0.3, 0.2])
+    expect(q.practicalTotal).toBeCloseTo(20.0, 6)
+  })
+})
+
 describe('analyzeWeight', () => {
   it('0.02 en 0.1 → belowResolution', () => {
     const a = analyzeWeight(0.02, 0.1)

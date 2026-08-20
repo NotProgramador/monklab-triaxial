@@ -1,8 +1,10 @@
 import type { MaterialType, VertexMaterial } from '../../types/material'
+import type { LibraryMaterial } from '../../types/libraryMaterial'
 import { RecipeEditor } from '../recipes/RecipeEditor'
 
 interface VertexEditorProps {
   vertex: VertexMaterial
+  library: LibraryMaterial[]
   onChange: (v: VertexMaterial) => void
 }
 
@@ -19,7 +21,7 @@ const TYPES: { value: MaterialType; label: string }[] = [
   { value: 'otro', label: 'Otro' },
 ]
 
-export function VertexEditor({ vertex, onChange }: VertexEditorProps) {
+export function VertexEditor({ vertex, library, onChange }: VertexEditorProps) {
   const hasRecipe = Boolean(vertex.recipe)
 
   return (
@@ -102,6 +104,7 @@ export function VertexEditor({ vertex, onChange }: VertexEditorProps) {
       {hasRecipe && vertex.recipe && (
         <RecipeEditor
           recipe={vertex.recipe}
+          library={library}
           onChange={(r) => onChange({ ...vertex, recipe: r })}
         />
       )}

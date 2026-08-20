@@ -12,6 +12,8 @@ export type MaterialType =
 
 export interface RecipeIngredient {
   id: string
+  /** Optional link to a LibraryMaterial. Snapshot `name` is still preserved for portability. */
+  materialId?: string
   name: string
   percentage: number
 }

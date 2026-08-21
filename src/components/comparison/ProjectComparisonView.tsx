@@ -20,6 +20,8 @@ interface Props {
   savedProjects: ProjectSummary[]
   currentProject: TriaxialProject
   currentDirty: boolean
+  /** Optional pre-selected ids (e.g. when opening from a series). */
+  initialSelectedIds?: string[]
   onClose: () => void
 }
 
@@ -44,9 +46,9 @@ function statusClass(status: string): string {
 }
 
 export function ProjectComparisonView({
-  savedProjects, currentProject, currentDirty, onClose,
+  savedProjects, currentProject, currentDirty, initialSelectedIds, onClose,
 }: Props) {
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => initialSelectedIds ?? [])
   const [projects, setProjects] = useState<Record<string, TriaxialProject>>({})
   const [loading, setLoading] = useState(false)
   const [compositionIdx, setCompositionIdx] = useState(0)

@@ -1,19 +1,21 @@
 /**
  * Shared IndexedDB opener for MonkLab-Triaxial.
  *
- * Single DB `monklab-triaxial` with two stores:
+ * Single DB `monklab-triaxial` with three stores:
  *   - `images`    (v1): keyPath `key`, index by `projectId`.
  *   - `materials` (v2): keyPath `id`.
+ *   - `series`    (v3): keyPath `id`.
  *
  * Version bumps must add stores idempotently — earlier version installs
  * created only the stores that existed at their version.
  */
 
 export const DB_NAME = 'monklab-triaxial'
-export const DB_VERSION = 2
+export const DB_VERSION = 3
 
 export const IMAGES_STORE = 'images'
 export const MATERIALS_STORE = 'materials'
+export const SERIES_STORE = 'series'
 
 export function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -30,6 +32,9 @@ export function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(MATERIALS_STORE)) {
         db.createObjectStore(MATERIALS_STORE, { keyPath: 'id' })
+      }
+      if (!db.objectStoreNames.contains(SERIES_STORE)) {
+        db.createObjectStore(SERIES_STORE, { keyPath: 'id' })
       }
     }
     req.onsuccess = () => resolve(req.result)

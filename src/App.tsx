@@ -23,6 +23,7 @@ import { LibraryPanel } from './components/library/LibraryPanel'
 import { SampleComparisonTray } from './components/comparison/SampleComparisonTray'
 import { SampleComparisonView } from './components/comparison/SampleComparisonView'
 import { ProjectComparisonView } from './components/comparison/ProjectComparisonView'
+import { SeriesPanel } from './components/series/SeriesPanel'
 import { clampReference, MAX_COMPARISON, toggleComparisonSample } from './engine/comparison'
 import { printLabelsDocument } from './print/printLabelsDocument'
 
@@ -62,6 +63,8 @@ function App() {
   const [referenceId, setReferenceId] = useState<number | null>(null)
   const [comparisonOpen, setComparisonOpen] = useState(false)
   const [projectComparisonOpen, setProjectComparisonOpen] = useState(false)
+  const [projectComparisonSeed, setProjectComparisonSeed] = useState<string[]>([])
+  const [seriesPanelOpen, setSeriesPanelOpen] = useState(false)
 
   useEffect(() => {
     listMaterials().then(setLibrary)
@@ -283,7 +286,8 @@ function App() {
           onPrintReport={() => setPrintMode('report')}
           onPrintLabels={() => printLabelsDocument(project.name, samples)}
           onOpenLibrary={() => setLibraryOpen(true)}
-          onCompareProjects={() => setProjectComparisonOpen(true)}
+          onCompareProjects={() => { setProjectComparisonSeed([]); setProjectComparisonOpen(true) }}
+          onOpenSeries={() => setSeriesPanelOpen(true)}
         />
 
         <section className="controls-bar no-print">
@@ -544,9 +548,24 @@ function App() {
           savedProjects={savedProjects}
           currentProject={project}
           currentDirty={dirty}
+          initialSelectedIds={projectComparisonSeed}
           onClose={() => setProjectComparisonOpen(false)}
         />
       )}
+
+      <SeriesPanel
+        open={seriesPanelOpen}
+        savedProjects={savedProjects}
+        currentProject={project}
+        currentDirty={dirty}
+        onClose={() => setSeriesPanelOpen(false)}
+        onOpenProject={(id) => { setSeriesPanelOpen(false); handleOpen(id) }}
+        onCompareSelected={(ids) => {
+          setProjectComparisonSeed(ids)
+          setSeriesPanelOpen(false)
+          setProjectComparisonOpen(true)
+        }}
+      />
 
       {comparisonOpen && comparisonIds.length >= 2 && (
         <SampleComparisonView

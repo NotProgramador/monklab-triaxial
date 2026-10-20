@@ -18,7 +18,7 @@ interface Props {
   currentDirty: boolean
   onClose: () => void
   onOpenProject: (id: string) => void
-  onCompareSelected: (projectIds: string[]) => void
+  onCompareSelected: (projectIds: string[], seriesName: string) => void
 }
 
 interface Draft {
@@ -218,7 +218,7 @@ export function SeriesPanel({
             onBack={() => setOpenId(null)}
             onUpdate={persistSeries}
             onOpenProject={onOpenProject}
-            onCompare={onCompareSelected}
+            onCompare={(ids) => onCompareSelected(ids, openSeries.name)}
           />
         )}
 

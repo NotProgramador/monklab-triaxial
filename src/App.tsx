@@ -64,6 +64,7 @@ function App() {
   const [comparisonOpen, setComparisonOpen] = useState(false)
   const [projectComparisonOpen, setProjectComparisonOpen] = useState(false)
   const [projectComparisonSeed, setProjectComparisonSeed] = useState<string[]>([])
+  const [projectComparisonSeriesName, setProjectComparisonSeriesName] = useState<string | undefined>(undefined)
   const [seriesPanelOpen, setSeriesPanelOpen] = useState(false)
 
   useEffect(() => {
@@ -286,7 +287,7 @@ function App() {
           onPrintReport={() => setPrintMode('report')}
           onPrintLabels={() => printLabelsDocument(project.name, samples)}
           onOpenLibrary={() => setLibraryOpen(true)}
-          onCompareProjects={() => { setProjectComparisonSeed([]); setProjectComparisonOpen(true) }}
+          onCompareProjects={() => { setProjectComparisonSeed([]); setProjectComparisonSeriesName(undefined); setProjectComparisonOpen(true) }}
           onOpenSeries={() => setSeriesPanelOpen(true)}
         />
 
@@ -549,6 +550,7 @@ function App() {
           currentProject={project}
           currentDirty={dirty}
           initialSelectedIds={projectComparisonSeed}
+          seriesName={projectComparisonSeriesName}
           onClose={() => setProjectComparisonOpen(false)}
         />
       )}
@@ -560,8 +562,9 @@ function App() {
         currentDirty={dirty}
         onClose={() => setSeriesPanelOpen(false)}
         onOpenProject={(id) => { setSeriesPanelOpen(false); handleOpen(id) }}
-        onCompareSelected={(ids) => {
+        onCompareSelected={(ids, name) => {
           setProjectComparisonSeed(ids)
+          setProjectComparisonSeriesName(name)
           setSeriesPanelOpen(false)
           setProjectComparisonOpen(true)
         }}

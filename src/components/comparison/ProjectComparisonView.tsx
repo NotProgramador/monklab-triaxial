@@ -12,6 +12,7 @@ import {
   sampleByComposition,
   type VertexRecipeStatus,
 } from '../../engine/projectComparison'
+import { printProjectComparisonReport } from '../../print/projectComparisonReport'
 import { formatExperimentSummary } from '../../engine/experimentContext'
 import { getSampleImage, releaseBlobUrl, urlForBlob } from '../../storage/imageStorage'
 import { loadProject } from '../../storage/projectStorage'
@@ -22,6 +23,8 @@ interface Props {
   currentDirty: boolean
   /** Optional pre-selected ids (e.g. when opening from a series). */
   initialSelectedIds?: string[]
+  /** Optional series name to include in the printed report. */
+  seriesName?: string
   onClose: () => void
 }
 
@@ -46,9 +49,10 @@ function statusClass(status: string): string {
 }
 
 export function ProjectComparisonView({
-  savedProjects, currentProject, currentDirty, initialSelectedIds, onClose,
+  savedProjects, currentProject, currentDirty, initialSelectedIds, seriesName, onClose,
 }: Props) {
   const [selectedIds, setSelectedIds] = useState<string[]>(() => initialSelectedIds ?? [])
+  const [printing, setPrinting] = useState(false)
   const [projects, setProjects] = useState<Record<string, TriaxialProject>>({})
   const [loading, setLoading] = useState(false)
   const [compositionIdx, setCompositionIdx] = useState(0)
@@ -125,6 +129,22 @@ export function ProjectComparisonView({
 
   const canOpen = orderedProjects.length >= MIN_PROJECTS
   const projectsById = new Map(savedProjects.map((s) => [s.id, s]))
+
+  const handlePrint = async () => {
+    if (!activeKey || orderedProjects.length < MIN_PROJECTS) return
+    setPrinting(true)
+    try {
+      await printProjectComparisonReport({
+        projects: orderedProjects,
+        compositionKeyValue: activeKey,
+        seriesName,
+      })
+    } finally {
+      // The iframe stays until afterprint; the button just re-enables so the
+      // user can adjust and re-print.
+      setPrinting(false)
+    }
+  }
 
   return (
     <div className="cmp-overlay" role="presentation" onClick={onClose}>
@@ -207,10 +227,23 @@ export function ProjectComparisonView({
             />
 
             {activeKey && (
-              <CompositionCards
-                projects={orderedProjects}
-                compositionKeyValue={activeKey}
-              />
+              <>
+                <div className="cmp-print-bar">
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handlePrint}
+                    disabled={printing}
+                    aria-label={`Imprimir reporte comparativo de composición ${activeKey.replace(/\|/g, ' / ')}`}
+                  >
+                    {printing ? 'Preparando reporte…' : 'Imprimir comparación'}
+                  </button>
+                </div>
+                <CompositionCards
+                  projects={orderedProjects}
+                  compositionKeyValue={activeKey}
+                />
+              </>
             )}
 
             {commonKeys.length === 0 && (

@@ -10,6 +10,7 @@ import { normalizeMaterialName } from './materialIdentity'
 import { atmosphereLabel } from './effectiveFiring'
 import { APPLICATION_METHOD_LABELS } from './experimentContext'
 import { generateTriaxial } from './generateTriaxial'
+import { requireExperimentStep } from './experimentAdapter'
 
 /** Cross-project identity for a mixture: "40|20|40". Never uses sample.id. */
 export function compositionKey(sample: Pick<TriaxialSample, 'a' | 'b' | 'c'>): string {
@@ -19,12 +20,15 @@ export function compositionKey(sample: Pick<TriaxialSample, 'a' | 'b' | 'c'>): s
 /**
  * Compositions present in EVERY project (exact intersection, never
  * interpolated). Order preserved from the first project's generated grid so
- * the result is deterministic.
+ * the result is deterministic. Triaxial-only — callers must have screened
+ * out other modes before reaching here.
  */
 export function findCommonCompositions(projects: TriaxialProject[]): string[] {
   if (projects.length === 0) return []
-  const sampleSets = projects.map((p) => new Set(generateTriaxial(p.step).map(compositionKey)))
-  const firstOrder = generateTriaxial(projects[0].step).map(compositionKey)
+  const sampleSets = projects.map(
+    (p) => new Set(generateTriaxial(requireExperimentStep(p)).map(compositionKey)),
+  )
+  const firstOrder = generateTriaxial(requireExperimentStep(projects[0])).map(compositionKey)
   const seen = new Set<string>()
   const out: string[] = []
   for (const key of firstOrder) {
@@ -39,7 +43,7 @@ export function findCommonCompositions(projects: TriaxialProject[]): string[] {
 
 /** Locate the sample within a project whose composition matches `key`. */
 export function sampleByComposition(project: TriaxialProject, key: string): TriaxialSample | null {
-  return generateTriaxial(project.step).find((s) => compositionKey(s) === key) ?? null
+  return generateTriaxial(requireExperimentStep(project)).find((s) => compositionKey(s) === key) ?? null
 }
 
 // ============ Vertex / recipe comparison ============

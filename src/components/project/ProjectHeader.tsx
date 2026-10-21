@@ -3,6 +3,8 @@ import type { ProjectSummary, TriaxialProject } from '../../types/project'
 
 interface Props {
   project: TriaxialProject
+  /** Dynamic tool label — "Triaxial", "Formulación única", … */
+  toolLabel: string
   savedProjects: ProjectSummary[]
   dirty: boolean
   onRename: (name: string) => void
@@ -21,18 +23,23 @@ interface Props {
 }
 
 export function ProjectHeader({
-  project, savedProjects, dirty,
+  project, toolLabel, savedProjects, dirty,
   onRename, onNew, onSave, onDuplicate, onDelete, onOpen,
   onImport, onExport, onPrintReport, onPrintLabels, onOpenLibrary, onCompareProjects, onOpenSeries,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
 
+  // Items that only make sense for triaxial projects (grid-dependent output):
+  // CSV, SVG, PDF report and sample labels. The menu entries are hidden for
+  // other modes so a mono user doesn't trip into a Txx label sheet.
+  const isTriaxial = project.mode === 'triaxial'
+
   return (
     <header className="app-header no-print">
       <div className="brand">
         <p className="eyebrow">MONKLAB</p>
-        <h1>Triaxial</h1>
+        <h1>{toolLabel}</h1>
       </div>
 
       <div className="project-title">
@@ -76,9 +83,13 @@ export function ProjectHeader({
             <button type="button" onClick={() => { onOpenLibrary(); closeMenu() }}>Materiales…</button>
             <button type="button" onClick={() => { onOpenSeries(); closeMenu() }}>Series experimentales…</button>
             <button type="button" onClick={() => { onCompareProjects(); closeMenu() }}>Comparar proyectos…</button>
-            <hr />
-            <button type="button" onClick={() => { onPrintReport(); closeMenu() }}>Imprimir informe</button>
-            <button type="button" onClick={() => { onPrintLabels(); closeMenu() }}>Imprimir etiquetas</button>
+            {isTriaxial && (
+              <>
+                <hr />
+                <button type="button" onClick={() => { onPrintReport(); closeMenu() }}>Imprimir informe</button>
+                <button type="button" onClick={() => { onPrintLabels(); closeMenu() }}>Imprimir etiquetas</button>
+              </>
+            )}
             {savedProjects.length > 0 && (
               <>
                 <hr />

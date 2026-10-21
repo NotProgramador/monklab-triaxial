@@ -113,6 +113,31 @@ export function getComponent(
   return project.components.find((c) => c.id === id)
 }
 
+/**
+ * Return `project.step` for a project where it is semantically required
+ * (biaxial / triaxial). Throws for monoaxial (no grid) or when the field
+ * is missing. Centralises the invariant so consumers never need `step!`.
+ */
+export function requireExperimentStep(
+  project: Pick<ExperimentProject, 'mode' | 'step'>,
+): number {
+  if (project.mode === 'monoaxial') {
+    throw new Error('requireExperimentStep no aplica al modo monoaxial.')
+  }
+  if (typeof project.step !== 'number' || !Number.isFinite(project.step)) {
+    throw new Error(`Proyecto ${project.mode} sin paso de división.`)
+  }
+  return project.step
+}
+
+/** Convenience: step as a number for bi/tri, undefined for monoaxial. */
+export function getExperimentStep(
+  project: Pick<ExperimentProject, 'mode' | 'step'>,
+): number | undefined {
+  if (project.mode === 'monoaxial') return undefined
+  return typeof project.step === 'number' ? project.step : undefined
+}
+
 /** Rebuild the derived triaxial vertex view from the authoritative components. */
 export function syncVerticesFromComponents<T extends ExperimentProject>(project: T): T {
   if (project.mode !== 'triaxial') return project

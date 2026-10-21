@@ -43,7 +43,13 @@ export interface ExperimentProject {
   mode: ExperimentMode
   components: FormulaComponent[]
 
-  step: number
+  /**
+   * Division (per-axis step). Required for biaxial / triaxial; omitted for
+   * monoaxial (which has a single formulation, not a grid). Readers that
+   * need the step on bi/tri must go through `requireExperimentStep` in
+   * `experimentAdapter` — never cast with `!`.
+   */
+  step?: number
   sampleWeight: number
   preparationMargin: number
   balancePrecision?: BalancePrecision
@@ -68,4 +74,11 @@ export interface ProjectSummary {
   name: string
   createdAt: string
   updatedAt: string
+  /**
+   * Mode copied from the project at save time, so index-only consumers
+   * (comparison picker, series list) can show the mode without loading
+   * the full JSON. Index entries written before Fase 2 may lack this
+   * field — treat `undefined` as 'triaxial' for backward compatibility.
+   */
+  mode?: ExperimentMode
 }

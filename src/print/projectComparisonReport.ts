@@ -130,7 +130,7 @@ function columnFor(project: TriaxialProject, key: string, photoDataUrls?: Record
   return {
     projectId: project.id,
     projectName: project.name,
-    step: project.step,
+    step: project.step ?? 0,
     sample,
     localSampleLabel: sample ? pad(sample.id) : '—',
     result,

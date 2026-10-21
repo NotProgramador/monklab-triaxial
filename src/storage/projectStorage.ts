@@ -91,6 +91,7 @@ export function saveProject(project: TriaxialProject): StorageResult {
       name: updated.name,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
+      mode: updated.mode,
     })
     writeIndex(index)
     localStorage.setItem(LAST_OPENED_KEY, updated.id)

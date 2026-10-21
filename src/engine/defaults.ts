@@ -1,6 +1,6 @@
 import type { ExperimentProject } from '../types/project'
 import { PROJECT_VERSION } from '../types/project'
-import type { FormulaComponent } from '../types/material'
+import type { FormulaComponent, VertexMaterial } from '../types/material'
 import { verticesFromComponents } from './experimentAdapter'
 
 function newId(): string {
@@ -31,5 +31,51 @@ export function createDefaultProject(name = 'Nuevo triaxial'): ExperimentProject
     firing: {},
     experiment: {},
     results: {},
+  }
+}
+
+/**
+ * Monoaxial default — a single formulation. The component id "formula" is
+ * stable and chosen deliberately: no "A"/"B"/"C" to avoid implying a grid.
+ * `step` is intentionally omitted (monoaxial has no division).
+ */
+export function createMonoaxialProject(name = 'Nueva formulación'): ExperimentProject {
+  const now = new Date().toISOString()
+  const components: FormulaComponent[] = [
+    {
+      id: 'formula',
+      name,
+      type: 'receta',
+      color: '#d8d3ca',
+      recipe: { ingredients: [] },
+    },
+  ]
+  return {
+    version: PROJECT_VERSION,
+    id: newId(),
+    name,
+    createdAt: now,
+    updatedAt: now,
+    mode: 'monoaxial',
+    components,
+    // step intentionally omitted — monoaxial has no division.
+    sampleWeight: 100,
+    preparationMargin: 10,
+    balancePrecision: 0.1,
+    // `vertices` is a derived triaxial-only convenience; the mono UI never
+    // reads it, but keeping a benign placeholder means the type stays square
+    // without introducing a union across every consumer.
+    vertices: monoPlaceholderVertices(),
+    firing: {},
+    experiment: {},
+    results: {},
+  }
+}
+
+function monoPlaceholderVertices(): { A: VertexMaterial; B: VertexMaterial; C: VertexMaterial } {
+  return {
+    A: { id: 'A', name: '', type: 'material', color: '#cccccc' },
+    B: { id: 'B', name: '', type: 'material', color: '#cccccc' },
+    C: { id: 'C', name: '', type: 'material', color: '#cccccc' },
   }
 }

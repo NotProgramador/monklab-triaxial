@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ProjectSummary, TriaxialProject } from '../../types/project'
 import type { FiringResult } from '../../types/result'
 import type { TriaxialSample } from '../../types/triaxial'
+import { MODE_LABELS } from '../../types/experimentMode'
 import { atmosphereLabel, getEffectiveFiring, hasSampleFiringOverride } from '../../engine/effectiveFiring'
 import { countRegistered, hasMeaningfulResult } from '../../engine/resultStatus'
 import { formatDateEs } from '../../engine/format'
@@ -175,7 +176,12 @@ export function ProjectComparisonView({
           <ul className="proj-selector-list">
             {savedProjects.map((s) => {
               const isCurrent = s.id === currentProject.id
-              const disabled = isCurrent && currentDirty
+              // Index entries predating Fase 2 may lack `mode`; treat as triaxial.
+              const summaryMode = s.mode ?? 'triaxial'
+              const isTriaxial = summaryMode === 'triaxial'
+              const dirtyBlocked = isCurrent && currentDirty
+              const modeBlocked = !isTriaxial
+              const disabled = dirtyBlocked || modeBlocked
               const selected = selectedIds.includes(s.id)
               const atMax = !selected && selectedIds.length >= MAX_PROJECTS
               return (
@@ -192,10 +198,16 @@ export function ProjectComparisonView({
                       <span className="proj-selector-meta">
                         {formatDateEs(s.updatedAt)}
                         {isCurrent && ' · actual'}
+                        {!isTriaxial && ` · ${MODE_LABELS[summaryMode]}`}
                       </span>
                     </span>
-                    {disabled && (
+                    {dirtyBlocked && (
                       <span className="proj-selector-warn">Guarda los cambios antes de comparar este proyecto.</span>
+                    )}
+                    {modeBlocked && !dirtyBlocked && (
+                      <span className="proj-selector-warn">
+                        {MODE_LABELS[summaryMode]} · comparación próximamente.
+                      </span>
                     )}
                   </label>
                 </li>
@@ -266,13 +278,14 @@ function ProjectSummaryRow({
     <section className="proj-summary-row">
       {projects.map((p) => {
         const summary = savedById.get(p.id)
-        const sampleCount = 1 + (p.step === 20 ? 20 : p.step === 25 ? 14 : p.step === 10 ? 65 : 230)
+        const step = p.step ?? 20
+        const sampleCount = 1 + (step === 20 ? 20 : step === 25 ? 14 : step === 10 ? 65 : 230)
         const registered = countRegistered(Array.from({ length: sampleCount }, (_, i) => i + 1), p.results)
         return (
           <div key={p.id} className="proj-summary-card">
             <h4>{p.name}</h4>
             <dl>
-              <div><dt>División</dt><dd>{p.step} %</dd></div>
+              <div><dt>División</dt><dd>{step} %</dd></div>
               <div><dt>Peso muestra</dt><dd>{p.sampleWeight} g</dd></div>
               {p.balancePrecision !== undefined && (
                 <div><dt>Balanza</dt><dd>{p.balancePrecision} g</dd></div>

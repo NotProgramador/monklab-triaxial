@@ -6,6 +6,8 @@ import { countRegistered } from '../../engine/resultStatus'
 import { formatExperimentSummary } from '../../engine/experimentContext'
 import { formatDateEs } from '../../engine/format'
 import { moveDown, moveUp, partitionOrphans } from '../../engine/seriesOrder'
+import { MODE_LABELS } from '../../types/experimentMode'
+import { MONOAXIAL_SAMPLE_ID } from '../../engine/generateMonoaxial'
 
 const MAX_COMPARE = 3
 const MIN_COMPARE = 2
@@ -91,16 +93,31 @@ export function SeriesView({
     onCompare(selected)
   }
 
-  // Detect A/B/C shape differences across projects in the series (informational only).
+  // Detect A/B/C shape differences across *triaxial* projects in the series
+  // (informational only). Non-triaxial projects skip this check.
   const differentShapes = useMemo(() => {
     const shapes = new Set<string>()
     for (const id of valid) {
       const p = id === currentProject.id ? currentProject : projectCache[id]
-      if (!p) continue
+      if (!p || p.mode !== 'triaxial') continue
       shapes.add(`${p.vertices.A.name}|${p.vertices.B.name}|${p.vertices.C.name}`)
     }
     return shapes.size > 1
   }, [valid, projectCache, currentProject])
+
+  // Cross-project comparison is still triaxial-only. If the selection
+  // includes a non-triaxial project we disable the launch button and
+  // explain why.
+  const selectedModes = useMemo(() => {
+    const modes = new Set<string>()
+    for (const id of selected) {
+      const p = id === currentProject.id ? currentProject : projectCache[id]
+      if (p) modes.add(p.mode)
+    }
+    return modes
+  }, [selected, projectCache, currentProject])
+  const compareBlocked = selected.length >= MIN_COMPARE
+    && (selectedModes.size > 1 || !selectedModes.has('triaxial'))
 
   return (
     <>
@@ -115,13 +132,25 @@ export function SeriesView({
             type="button"
             className="btn"
             onClick={compareNow}
-            disabled={selected.length < MIN_COMPARE}
-            title={selected.length < MIN_COMPARE ? 'Selecciona al menos 2 proyectos' : undefined}
+            disabled={selected.length < MIN_COMPARE || compareBlocked}
+            title={
+              selected.length < MIN_COMPARE
+                ? 'Selecciona al menos 2 proyectos'
+                : compareBlocked
+                  ? 'La comparación entre este tipo de proyectos se habilitará en una fase posterior.'
+                  : undefined
+            }
           >
             Comparar seleccionados ({selected.length})
           </button>
         </div>
       </div>
+
+      {compareBlocked && (
+        <p className="hint hint-warn" role="status">
+          La comparación entre este tipo de proyectos se habilitará en una fase posterior.
+        </p>
+      )}
 
       {differentShapes && (
         <p className="hint hint-warn">
@@ -158,13 +187,18 @@ export function SeriesView({
           const summary = savedProjects.find((s) => s.id === id)
           const isSelected = selected.includes(id)
           const atMax = !isSelected && selected.length >= MAX_COMPARE
-          const registered = p
-            ? countRegistered(
-                Array.from({ length: sampleCountForStep(p.step) }, (_, i) => i + 1),
-                p.results,
-              )
+          const isMono = p?.mode === 'monoaxial'
+          const totalSamples = p
+            ? (isMono ? 1 : sampleCountForStep(p.step ?? 20))
             : 0
-          const totalSamples = p ? sampleCountForStep(p.step) : 0
+          const registered = p
+            ? (isMono
+                ? countRegistered([MONOAXIAL_SAMPLE_ID], p.results)
+                : countRegistered(
+                    Array.from({ length: totalSamples }, (_, i) => i + 1),
+                    p.results,
+                  ))
+            : 0
           const firingLine = p && hasAnyProjectFiring(p.firing)
             ? [
                 p.firing?.temperature !== undefined ? `${p.firing.temperature} °C` : null,
@@ -205,7 +239,10 @@ export function SeriesView({
               </header>
               {p ? (
                 <dl className="series-card-facts">
-                  <div><dt>División</dt><dd>{p.step} %</dd></div>
+                  <div><dt>Tipo</dt><dd>{MODE_LABELS[p.mode]}</dd></div>
+                  {!isMono && (
+                    <div><dt>División</dt><dd>{p.step ?? '—'} %</dd></div>
+                  )}
                   <div><dt>Resultados</dt><dd>{registered} / {totalSamples}</dd></div>
                   {firingLine && <div><dt>Cocción</dt><dd>{firingLine}</dd></div>}
                   {experimentLine && <div><dt>Contexto</dt><dd>{experimentLine}</dd></div>}

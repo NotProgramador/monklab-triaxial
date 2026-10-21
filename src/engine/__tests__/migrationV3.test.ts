@@ -132,7 +132,7 @@ describe('invariantes matemáticos preservados tras V2→V3', () => {
 
   it('pesada T09 20g = A8/B4/C8 y receta expandida idéntica', () => {
     const p = deserializeProject(JSON.stringify(V2_FIXTURE))
-    const samples = generateTriaxial(p.step)
+    const samples = generateTriaxial(p.step!)
     const t09 = samples.find((s) => s.id === 9)!
     const expansion = expandSample(t09, p.vertices, p.sampleWeight)
     expect(expansion.valid).toBe(true)
@@ -154,7 +154,7 @@ describe('invariantes matemáticos preservados tras V2→V3', () => {
 
   it('calculatePreparation sobre proyecto migrado: 21 muestras, 420g totales, 462g con margen 10%', () => {
     const p = deserializeProject(JSON.stringify(V2_FIXTURE))
-    const prep = calculatePreparation(generateTriaxial(p.step), p.vertices, p.sampleWeight, p.preparationMargin)
+    const prep = calculatePreparation(generateTriaxial(p.step!), p.vertices, p.sampleWeight, p.preparationMargin)
     expect(prep.sampleCount).toBe(21)
     expect(prep.grossTotal).toBeCloseTo(420)
     expect(prep.withMarginTotal).toBeCloseTo(462)

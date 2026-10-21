@@ -24,9 +24,11 @@ interface Props {
 }
 
 export function PrintReport({ project, samples, preparation }: Props) {
+  // PrintReport is triaxial-only; App.tsx never routes other modes here.
+  const step = project.step ?? 0
   const svg = buildStandaloneSvg({
     samples,
-    step: project.step,
+    step,
     vertices: project.vertices,
     projectName: project.name,
     selectedSampleId: null,
@@ -48,7 +50,7 @@ export function PrintReport({ project, samples, preparation }: Props) {
         </header>
 
         <section className="print-params">
-          <div><span>División</span><b>{project.step} %</b></div>
+          <div><span>División</span><b>{step} %</b></div>
           <div><span>Muestras</span><b>{samples.length}</b></div>
           <div><span>Peso por muestra</span><b>{project.sampleWeight} g</b></div>
           <div><span>Margen</span><b>{project.preparationMargin} %</b></div>

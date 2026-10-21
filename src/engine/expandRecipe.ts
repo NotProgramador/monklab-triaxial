@@ -1,4 +1,4 @@
-import type { VertexMaterial, Recipe } from '../types/material'
+import type { FormulaComponent, VertexMaterial, Recipe } from '../types/material'
 import type { TriaxialSample } from '../types/triaxial'
 import { calculateSampleWeights } from './calculateSampleWeights'
 import { ingredientKey } from './materialIdentity'
@@ -65,26 +65,42 @@ export function normalizeRecipeTo100(recipe: Recipe): Recipe {
   return { ...recipe, ingredients: scaled }
 }
 
-function expandVertexStrict(vertex: VertexMaterial, grams: number): VertexExpansion {
-  if (!vertex.recipe) {
+/**
+ * Expand a formula component (recipe or simple material) into ingredient
+ * grams. Mode-agnostic: triaxial vertices and monoaxial components all go
+ * through this. Behaviour mirrors the previous `expandVertexStrict`:
+ *   - no recipe → one entry with the component's name
+ *   - empty recipe or total ≠ 100 % → invalid (nothing is calculated)
+ *   - valid recipe → each ingredient scaled by `grams / 100`, snapshot name
+ *     and materialId preserved.
+ */
+export function expandFormulaComponent(
+  component: Pick<FormulaComponent, 'id' | 'name' | 'recipe'>,
+  grams: number,
+): VertexExpansion {
+  if (!component.recipe) {
     return {
       valid: true,
-      ingredients: [{ name: vertex.name || vertex.id, grams }],
+      ingredients: [{ name: component.name || component.id, grams }],
     }
   }
-  if (vertex.recipe.ingredients.length === 0) {
+  if (component.recipe.ingredients.length === 0) {
     return { valid: false, reason: 'invalid-recipe-total', total: 0 }
   }
-  const total = recipeTotal(vertex.recipe)
+  const total = recipeTotal(component.recipe)
   if (Math.abs(total - 100) >= 0.01) {
     return { valid: false, reason: 'invalid-recipe-total', total }
   }
-  const ingredients = vertex.recipe.ingredients.map((ing) => ({
+  const ingredients = component.recipe.ingredients.map((ing) => ({
     name: ing.name,
     grams: (ing.percentage / 100) * grams,
     materialId: ing.materialId,
   }))
   return { valid: true, ingredients }
+}
+
+function expandVertexStrict(vertex: VertexMaterial, grams: number): VertexExpansion {
+  return expandFormulaComponent(vertex, grams)
 }
 
 export function expandSample(

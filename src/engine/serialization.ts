@@ -203,7 +203,13 @@ function parseFiring(data: Record<string, unknown>): ExperimentProject['firing']
   }
 }
 
-function parseStep(data: Record<string, unknown>): number {
+function parseStepForMode(data: Record<string, unknown>, mode: ExperimentMode): number | undefined {
+  if (mode === 'monoaxial') {
+    // Monoaxial has no division — a lingering `step` from a bad export is
+    // silently ignored so the file remains importable, but it is never
+    // persisted or exposed.
+    return undefined
+  }
   const stepRaw = data.step
   assert(
     typeof stepRaw === 'number' && ALLOWED_STEPS.includes(stepRaw as 25 | 20 | 10 | 5),
@@ -212,10 +218,14 @@ function parseStep(data: Record<string, unknown>): number {
   return stepRaw as number
 }
 
-function parseSampleWeight(data: Record<string, unknown>): number {
+function parseSampleWeight(data: Record<string, unknown>, mode: ExperimentMode): number {
+  // Monoaxial calls it "cantidad base" in the UI but persists under the same
+  // field so the storage schema stays single-shape. "Peso por muestra" is the
+  // bi/tri reading.
+  const label = mode === 'monoaxial' ? 'Cantidad base inválida.' : 'Peso por muestra inválido.'
   assert(
     typeof data.sampleWeight === 'number' && Number.isFinite(data.sampleWeight) && data.sampleWeight > 0,
-    'Peso por muestra inválido.',
+    label,
   )
   return data.sampleWeight
 }
@@ -252,11 +262,7 @@ function migrateSchemaToV3(data: Record<string, unknown>): SchemaMigrationArtifa
   const createdAt = typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString()
   const updatedAt = typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString()
 
-  const step = parseStep(data)
-  const sampleWeight = parseSampleWeight(data)
-  const margin = parseMargin(data)
-  const balancePrecision = isBalancePrecision(data.balancePrecision) ? data.balancePrecision : undefined
-
+  // Mode first — bi/tri step validation depends on it, monoaxial skips it.
   let components: FormulaComponent[]
   let mode: ExperimentMode
 
@@ -284,6 +290,11 @@ function migrateSchemaToV3(data: Record<string, unknown>): SchemaMigrationArtifa
   const structure = validateComponentStructure(mode, components)
   assert(structure.valid, `Estructura de componentes inválida para modo ${mode}`)
 
+  const step = parseStepForMode(data, mode)
+  const sampleWeight = parseSampleWeight(data, mode)
+  const margin = parseMargin(data)
+  const balancePrecision = isBalancePrecision(data.balancePrecision) ? data.balancePrecision : undefined
+
   // Photo side effects live ONLY on V1. V2 and V3 keep their IndexedDB blobs intact.
   let results: Record<number, FiringResult>
   const v1PhotoSideEffects: MigrationSideEffect[] = []
@@ -303,7 +314,6 @@ function migrateSchemaToV3(data: Record<string, unknown>): SchemaMigrationArtifa
     updatedAt,
     mode,
     components,
-    step,
     sampleWeight,
     preparationMargin: margin,
     balancePrecision,
@@ -314,6 +324,7 @@ function migrateSchemaToV3(data: Record<string, unknown>): SchemaMigrationArtifa
     firing: parseFiring(data),
     results,
   }
+  if (step !== undefined) project.step = step
 
   return { project, sourceVersion: version, v1PhotoSideEffects }
 }
@@ -328,13 +339,16 @@ function triaxialPlaceholderVertices(): { A: VertexMaterial; B: VertexMaterial; 
 
 export function serializeProject(project: TriaxialProject): string {
   // Strip the derived `vertices` view — V3 persists ONLY `components`.
-  const { vertices: _vertices, ...rest } = project
+  const { vertices: _vertices, step: stepIn, ...rest } = project
   void _vertices
-  const payload = {
+  // Monoaxial never has a division; keep `step` out of its JSON so the export
+  // can't suggest otherwise. Bi/tri always emit their step.
+  const payload: Record<string, unknown> = {
     ...rest,
+    ...(project.mode !== 'monoaxial' && typeof stepIn === 'number' ? { step: stepIn } : {}),
     version: PROJECT_VERSION,
     exportedAt: new Date().toISOString(),
-    app: 'MonkLab - Triaxial',
+    app: 'MonkLab',
   }
   return JSON.stringify(payload, null, 2)
 }

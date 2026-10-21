@@ -7,6 +7,7 @@ import { calculatePreparation } from '../calculatePreparation'
 import { deserializeProject, serializeProject } from '../serialization'
 import { createDefaultProject } from '../defaults'
 import { buildStandaloneSvg } from '../exportSvg'
+import { withVertex } from '../experimentAdapter'
 import type { VertexMaterial } from '../../types/material'
 
 const V = {
@@ -274,13 +275,16 @@ describe('serialization', () => {
   })
 
   it('roundtrip materialId en ingredientes (V1.3.2)', () => {
-    const p = createDefaultProject('T')
-    p.vertices.A.recipe = {
-      ingredients: [
-        { id: 'i1', materialId: 'mat-caolin', name: 'Caolín', percentage: 60 },
-        { id: 'i2', name: 'Otro libre', percentage: 40 },
-      ],
-    }
+    const base = createDefaultProject('T')
+    const p = withVertex(base, 'A', {
+      ...base.vertices.A,
+      recipe: {
+        ingredients: [
+          { id: 'i1', materialId: 'mat-caolin', name: 'Caolín', percentage: 60 },
+          { id: 'i2', name: 'Otro libre', percentage: 40 },
+        ],
+      },
+    })
     const rt = deserializeProject(serializeProject(p))
     expect(rt.vertices.A.recipe!.ingredients[0].materialId).toBe('mat-caolin')
     expect(rt.vertices.A.recipe!.ingredients[1].materialId).toBeUndefined()

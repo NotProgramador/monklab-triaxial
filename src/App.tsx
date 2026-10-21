@@ -25,6 +25,8 @@ import { SampleComparisonView } from './components/comparison/SampleComparisonVi
 import { ProjectComparisonView } from './components/comparison/ProjectComparisonView'
 import { SeriesPanel } from './components/series/SeriesPanel'
 import { clampReference, MAX_COMPARISON, toggleComparisonSample } from './engine/comparison'
+import { withVertex } from './engine/experimentAdapter'
+import { isSupportedUIMode } from './types/experimentMode'
 import { printLabelsDocument } from './print/printLabelsDocument'
 
 import type { ExperimentContext, ProjectFiring, TriaxialProject } from './types/project'
@@ -165,7 +167,10 @@ function App() {
     setDirty(true)
   }
   const updateVertex = (id: VertexId, v: VertexMaterial) => {
-    update({ vertices: { ...project.vertices, [id]: { ...v, id } } })
+    // `components` is the V3 source of truth: route every vertex edit through
+    // the adapter so vertices and components stay in sync in one place.
+    setProject((p) => ({ ...withVertex(p, id, v), updatedAt: new Date().toISOString() }))
+    setDirty(true)
   }
   const updateResult = (sampleId: number, r: FiringResult | undefined) => {
     const results = { ...project.results }
@@ -220,6 +225,10 @@ function App() {
     if (dirty && !confirm('Hay cambios sin guardar. ¿Descartarlos?')) return
     const p = await loadProject(id)
     if (p) {
+      if (!isSupportedUIMode(p.mode)) {
+        showToast({ kind: 'error', message: 'Este tipo de proyecto todavía no está habilitado en esta versión de MonkLab.' })
+        return
+      }
       setProject(p)
       setDirty(false)
       setSelectedId(1)
@@ -229,7 +238,18 @@ function App() {
   const handleImport = async (file: File) => {
     try {
       const text = await file.text()
+      try {
+        const peek = JSON.parse(text) as { mode?: unknown }
+        if (typeof peek.mode === 'string' && (peek.mode === 'monoaxial' || peek.mode === 'biaxial')) {
+          throw new Error('Este tipo de proyecto todavía no está habilitado en esta versión de MonkLab.')
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith('Este tipo de proyecto')) throw e
+      }
       const p = deserializeProject(text)
+      if (!isSupportedUIMode(p.mode)) {
+        throw new Error('Este tipo de proyecto todavía no está habilitado en esta versión de MonkLab.')
+      }
       setProject({ ...p, id: crypto.randomUUID() })
       setDirty(true)
       showToast({ kind: 'warn', message: 'Proyecto importado. Las fotografías no se incluyen en JSON.' })

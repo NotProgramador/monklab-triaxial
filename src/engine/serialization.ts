@@ -1,9 +1,11 @@
-import { PROJECT_VERSION, type ApplicationMethod, type ExperimentContext, type TriaxialProject } from '../types/project'
-import type { MaterialType, Recipe, RecipeIngredient, VertexMaterial } from '../types/material'
+import { PROJECT_VERSION, type ApplicationMethod, type ExperimentContext, type ExperimentProject, type TriaxialProject } from '../types/project'
+import type { FormulaComponent, MaterialType, Recipe, RecipeIngredient, VertexMaterial } from '../types/material'
 import type { FiringAtmosphere, FiringResult, Surface } from '../types/result'
 import { ALLOWED_STEPS } from './generateTriaxial'
 import { isBalancePrecision } from './weighingPrecision'
 import { saveSampleImage } from '../storage/imageStorage'
+import { isExperimentMode, type ExperimentMode } from '../types/experimentMode'
+import { validateComponentStructure, verticesFromComponents } from './experimentAdapter'
 
 const ALLOWED_TYPES: readonly MaterialType[] = [
   'material', 'compuesto', 'oxido', 'pigmento', 'engobe',
@@ -62,6 +64,26 @@ function validateVertex(v: unknown, id: 'A' | 'B' | 'C'): VertexMaterial {
   }
 }
 
+/**
+ * Validate a V3 component. The id is required and kept as-is (used for
+ * cross-project composition matching). Legacy triaxial projects carry
+ * 'A' / 'B' / 'C' ids after V2→V3 migration.
+ */
+function validateComponent(v: unknown, index: number): FormulaComponent {
+  assert(isObject(v), `Componente ${index} inválido`)
+  const id = typeof v.id === 'string' && v.id ? v.id : `c${index}`
+  const type = ALLOWED_TYPES.includes(v.type as MaterialType) ? (v.type as MaterialType) : 'material'
+  return {
+    id,
+    name: typeof v.name === 'string' ? v.name : `Componente ${id}`,
+    type,
+    color: validateColor(v.color, '#cccccc'),
+    chemicalFormula: typeof v.chemicalFormula === 'string' ? v.chemicalFormula : undefined,
+    notes: typeof v.notes === 'string' ? v.notes : undefined,
+    recipe: validateRecipe(v.recipe),
+  }
+}
+
 function validateLevel(v: unknown): 1 | 2 | 3 | undefined {
   return v === 1 || v === 2 || v === 3 ? v : undefined
 }
@@ -111,17 +133,27 @@ interface MigrationSideEffect {
   dataUri: string
 }
 
-async function extractBase64Photos(
-  results: Record<string, unknown>,
+interface SchemaMigrationArtifact {
+  project: ExperimentProject
+  sourceVersion: number
+  v1PhotoSideEffects: MigrationSideEffect[]
+}
+
+/**
+ * Legacy V1 photo extraction. Only invoked when the raw project is V1 —
+ * never for V2 or V3, which store `hasPhoto` and keep the binary in
+ * IndexedDB untouched.
+ */
+function extractV1Base64Photos(
+  rawResults: Record<string, unknown>,
   projectId: string,
-): Promise<{ cleaned: Record<number, FiringResult>; sideEffects: MigrationSideEffect[] }> {
+): { cleaned: Record<number, FiringResult>; sideEffects: MigrationSideEffect[] } {
   const cleaned: Record<number, FiringResult> = {}
   const sideEffects: MigrationSideEffect[] = []
-  for (const [k, raw] of Object.entries(results)) {
+  for (const [k, raw] of Object.entries(rawResults)) {
     const id = Number(k)
     if (!Number.isFinite(id)) continue
     const r = validateResult(raw)
-    // Legacy v1: raw.photo is a base64 data URI
     if (isObject(raw) && typeof raw.photo === 'string' && raw.photo.startsWith('data:')) {
       sideEffects.push({ projectId, sampleId: id, dataUri: raw.photo })
       r.hasPhoto = true
@@ -145,9 +177,162 @@ function dataUriToBlob(uri: string): Blob | null {
   }
 }
 
+function parseResults(rawResults: unknown): Record<number, FiringResult> {
+  const results: Record<number, FiringResult> = {}
+  if (!isObject(rawResults)) return results
+  for (const [k, v] of Object.entries(rawResults)) {
+    const id = Number(k)
+    if (!Number.isFinite(id)) continue
+    results[id] = validateResult(v)
+  }
+  return results
+}
+
+function parseFiring(data: Record<string, unknown>): ExperimentProject['firing'] {
+  if (!isObject(data.firing)) return undefined
+  return {
+    date: typeof data.firing.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.firing.date)
+      ? data.firing.date : undefined,
+    temperature: typeof data.firing.temperature === 'number' && Number.isFinite(data.firing.temperature) && data.firing.temperature >= 0
+      ? data.firing.temperature : undefined,
+    cone: typeof data.firing.cone === 'string' ? data.firing.cone : undefined,
+    atmosphere: ALLOWED_ATMOS.includes(data.firing.atmosphere as FiringAtmosphere)
+      ? (data.firing.atmosphere as FiringAtmosphere) : undefined,
+    kiln: typeof data.firing.kiln === 'string' ? data.firing.kiln : undefined,
+    notes: typeof data.firing.notes === 'string' ? data.firing.notes : undefined,
+  }
+}
+
+function parseStep(data: Record<string, unknown>): number {
+  const stepRaw = data.step
+  assert(
+    typeof stepRaw === 'number' && ALLOWED_STEPS.includes(stepRaw as 25 | 20 | 10 | 5),
+    'División no válida. Valores permitidos: 5, 10, 20, 25.',
+  )
+  return stepRaw as number
+}
+
+function parseSampleWeight(data: Record<string, unknown>): number {
+  assert(
+    typeof data.sampleWeight === 'number' && Number.isFinite(data.sampleWeight) && data.sampleWeight > 0,
+    'Peso por muestra inválido.',
+  )
+  return data.sampleWeight
+}
+
+function parseMargin(data: Record<string, unknown>): number {
+  return typeof data.preparationMargin === 'number' && Number.isFinite(data.preparationMargin) && data.preparationMargin >= 0
+    ? data.preparationMargin : 0
+}
+
+function parseMode(data: Record<string, unknown>): ExperimentMode {
+  if (isExperimentMode(data.mode)) return data.mode
+  return 'triaxial'
+}
+
+function makeId(data: Record<string, unknown>): string {
+  if (typeof data.id === 'string' && data.id) return data.id
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+/**
+ * Schema migration — the pure, synchronous half of the pipeline. Accepts
+ * V1/V2/V3 raw data, returns a runtime V3 project plus a list of V1 photo
+ * side effects (empty for V2 and V3). This function MUST NOT touch
+ * IndexedDB.
+ */
+function migrateSchemaToV3(data: Record<string, unknown>): SchemaMigrationArtifact {
+  const version = typeof data.version === 'number' ? data.version : 1
+  assert(version <= PROJECT_VERSION, `Versión de proyecto no soportada: ${String(version)}`)
+
+  const id = makeId(data)
+  const name = typeof data.name === 'string' ? data.name : 'Sin nombre'
+  const createdAt = typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString()
+  const updatedAt = typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString()
+
+  const step = parseStep(data)
+  const sampleWeight = parseSampleWeight(data)
+  const margin = parseMargin(data)
+  const balancePrecision = isBalancePrecision(data.balancePrecision) ? data.balancePrecision : undefined
+
+  let components: FormulaComponent[]
+  let mode: ExperimentMode
+
+  if (version >= 3) {
+    // V3 — components as source of truth.
+    mode = parseMode(data)
+    assert(Array.isArray(data.components), 'Proyecto V3 sin componentes')
+    components = data.components.map((c, i) => validateComponent(c, i))
+  } else {
+    // V1 / V2 — vertices as source of truth → derive components in A/B/C order.
+    mode = 'triaxial'
+    assert(isObject(data.vertices), 'Proyecto sin vértices')
+    const vertsIn = data.vertices as Record<string, unknown>
+    assert(vertsIn.A && vertsIn.B && vertsIn.C, 'Vértices A/B/C requeridos')
+    const A = validateVertex(vertsIn.A, 'A')
+    const B = validateVertex(vertsIn.B, 'B')
+    const C = validateVertex(vertsIn.C, 'C')
+    components = [
+      { id: 'A', name: A.name, type: A.type, color: A.color, chemicalFormula: A.chemicalFormula, notes: A.notes, recipe: A.recipe },
+      { id: 'B', name: B.name, type: B.type, color: B.color, chemicalFormula: B.chemicalFormula, notes: B.notes, recipe: B.recipe },
+      { id: 'C', name: C.name, type: C.type, color: C.color, chemicalFormula: C.chemicalFormula, notes: C.notes, recipe: C.recipe },
+    ]
+  }
+
+  const structure = validateComponentStructure(mode, components)
+  assert(structure.valid, `Estructura de componentes inválida para modo ${mode}`)
+
+  // Photo side effects live ONLY on V1. V2 and V3 keep their IndexedDB blobs intact.
+  let results: Record<number, FiringResult>
+  const v1PhotoSideEffects: MigrationSideEffect[] = []
+  if (version <= 1 && isObject(data.results)) {
+    const { cleaned, sideEffects } = extractV1Base64Photos(data.results as Record<string, unknown>, id)
+    results = cleaned
+    v1PhotoSideEffects.push(...sideEffects)
+  } else {
+    results = parseResults(data.results)
+  }
+
+  const project: ExperimentProject = {
+    version: PROJECT_VERSION,
+    id,
+    name,
+    createdAt,
+    updatedAt,
+    mode,
+    components,
+    step,
+    sampleWeight,
+    preparationMargin: margin,
+    balancePrecision,
+    vertices: mode === 'triaxial'
+      ? verticesFromComponents(components)
+      : triaxialPlaceholderVertices(), // triaxial-only field; benign placeholder for other modes
+    experiment: isObject(data.experiment) ? validateExperiment(data.experiment) : undefined,
+    firing: parseFiring(data),
+    results,
+  }
+
+  return { project, sourceVersion: version, v1PhotoSideEffects }
+}
+
+function triaxialPlaceholderVertices(): { A: VertexMaterial; B: VertexMaterial; C: VertexMaterial } {
+  return {
+    A: { id: 'A', name: '', type: 'material', color: '#cccccc' },
+    B: { id: 'B', name: '', type: 'material', color: '#cccccc' },
+    C: { id: 'C', name: '', type: 'material', color: '#cccccc' },
+  }
+}
+
 export function serializeProject(project: TriaxialProject): string {
+  // Strip the derived `vertices` view — V3 persists ONLY `components`.
+  const { vertices: _vertices, ...rest } = project
+  void _vertices
   const payload = {
-    ...project,
+    ...rest,
+    version: PROJECT_VERSION,
     exportedAt: new Date().toISOString(),
     app: 'MonkLab - Triaxial',
   }
@@ -157,106 +342,30 @@ export function serializeProject(project: TriaxialProject): string {
 export function deserializeProject(raw: string | unknown): TriaxialProject {
   const data = typeof raw === 'string' ? JSON.parse(raw) : raw
   assert(isObject(data), 'Proyecto inválido')
-
-  const version = typeof data.version === 'number' ? data.version : 1
-  assert(version <= PROJECT_VERSION, `Versión de proyecto no soportada: ${String(version)}`)
-
-  assert(isObject(data.vertices), 'Proyecto sin vértices')
-  const vertsIn = data.vertices as Record<string, unknown>
-  assert(vertsIn.A && vertsIn.B && vertsIn.C, 'Vértices A/B/C requeridos')
-
-  const stepRaw = data.step
-  assert(
-    typeof stepRaw === 'number' && ALLOWED_STEPS.includes(stepRaw as 25 | 20 | 10 | 5),
-    'División no válida. Valores permitidos: 5, 10, 20, 25.',
-  )
-  const step = stepRaw as number
-
-  assert(
-    typeof data.sampleWeight === 'number' && Number.isFinite(data.sampleWeight) && data.sampleWeight > 0,
-    'Peso por muestra inválido.',
-  )
-  const sw = data.sampleWeight
-
-  const margin = typeof data.preparationMargin === 'number' && Number.isFinite(data.preparationMargin) && data.preparationMargin >= 0
-    ? data.preparationMargin : 0
-
-  const balancePrecision = isBalancePrecision(data.balancePrecision) ? data.balancePrecision : undefined
-
-  const results: Record<number, FiringResult> = {}
-  if (isObject(data.results)) {
-    for (const [k, v] of Object.entries(data.results)) {
-      const id = Number(k)
-      if (!Number.isFinite(id)) continue
-      const r = validateResult(v)
-      // strip legacy base64 photo silently on non-migrating load path
-      results[id] = r
-    }
-  }
-
-  return {
-    version: PROJECT_VERSION,
-    id: typeof data.id === 'string' && data.id ? data.id : crypto.randomUUID(),
-    name: typeof data.name === 'string' ? data.name : 'Sin nombre',
-    createdAt: typeof data.createdAt === 'string' ? data.createdAt : new Date().toISOString(),
-    updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : new Date().toISOString(),
-    step,
-    sampleWeight: sw,
-    preparationMargin: margin,
-    balancePrecision,
-    vertices: {
-      A: validateVertex(vertsIn.A, 'A'),
-      B: validateVertex(vertsIn.B, 'B'),
-      C: validateVertex(vertsIn.C, 'C'),
-    },
-    experiment: isObject(data.experiment) ? validateExperiment(data.experiment) : undefined,
-    firing: isObject(data.firing) ? {
-      date: typeof data.firing.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.firing.date)
-        ? data.firing.date : undefined,
-      temperature: typeof data.firing.temperature === 'number' && Number.isFinite(data.firing.temperature) && data.firing.temperature >= 0
-        ? data.firing.temperature : undefined,
-      cone: typeof data.firing.cone === 'string' ? data.firing.cone : undefined,
-      atmosphere: ALLOWED_ATMOS.includes(data.firing.atmosphere as FiringAtmosphere)
-        ? (data.firing.atmosphere as FiringAtmosphere) : undefined,
-      kiln: typeof data.firing.kiln === 'string' ? data.firing.kiln : undefined,
-      notes: typeof data.firing.notes === 'string' ? data.firing.notes : undefined,
-    } : undefined,
-    results,
-  }
+  const { project } = migrateSchemaToV3(data)
+  return project
 }
 
 /**
- * Migración V1 -> V2: extrae fotos base64 embebidas y las mueve a IndexedDB.
- * Devuelve el proyecto ya migrado. Si la escritura de fotos falla, mantiene
- * hasPhoto=false pero no destruye la foto ya que el JSON crudo se preserva
- * hasta que el usuario guarde.
+ * Full load pipeline: schema migration first, then (and only then) V1 photo
+ * side effects to IndexedDB. V2 and V3 projects never trigger photo writes
+ * here — their blobs are already in IndexedDB and must not be touched.
  */
 export async function migrateProjectPhotos(raw: string | unknown): Promise<TriaxialProject> {
   const data = typeof raw === 'string' ? JSON.parse(raw) : raw
   assert(isObject(data), 'Proyecto inválido')
 
-  const version = typeof data.version === 'number' ? data.version : 1
-  const project = deserializeProject(data)
+  const { project, v1PhotoSideEffects } = migrateSchemaToV3(data)
 
-  if (version >= PROJECT_VERSION) return project
-  if (!isObject(data.results)) return project
-
-  const { cleaned, sideEffects } = await extractBase64Photos(
-    data.results as Record<string, unknown>,
-    project.id,
-  )
-  project.results = cleaned
-
-  for (const eff of sideEffects) {
+  for (const eff of v1PhotoSideEffects) {
     const blob = dataUriToBlob(eff.dataUri)
     if (!blob) continue
     try {
       await saveSampleImage(eff.projectId, eff.sampleId, blob)
     } catch {
-      // dejar hasPhoto=true; la foto original permanece en el JSON hasta guardar
+      // leave hasPhoto=true; the original JSON is still available until save
     }
   }
 
-  project.version = PROJECT_VERSION
   return project
 }
